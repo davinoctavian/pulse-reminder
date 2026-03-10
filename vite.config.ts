@@ -17,8 +17,8 @@ export default defineConfig({
         name: "Pulse Reminder",
         short_name: "Reminder",
         description: "Pulse Reminder built with React Vite PWA",
-        theme_color: "#ffffff",
-        background_color: "#f9f9f9",
+        theme_color: "#000000",
+        background_color: "#000000",
         display: "fullscreen",
         start_url: "/",
         icons: [
