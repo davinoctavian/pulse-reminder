@@ -8,3 +8,7 @@ body,
   height: 100%;
   overflow-x: hidden;
 }
+
+.list-reminder {
+  border: 1px solid #fff;
+}
