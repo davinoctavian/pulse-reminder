@@ -8,7 +8,21 @@ body,
   height: 100%;
   overflow-x: hidden;
 }
+.container {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 0 auto;
+  align-content: center;
+}
 
 .list-reminder {
   border: 1px solid #fff;
+}
+
+footer {
+  margin-bottom: 20px;
 }
