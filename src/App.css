@@ -26,3 +26,38 @@ main {
 footer {
   margin-bottom: 20px;
 }
+
+.modal-content {
+  min-height: 280px;
+}
+.mb-40 {
+  margin-bottom: 40px;
+}
+.color-dark {
+  color: #000;
+}
+
+/* Datepicker text color */
+.datepicker-date-display,
+.datepicker-calendar-container,
+.datepicker-calendar-container table td,
+.datepicker-calendar-container table th {
+  color: #000 !important;
+}
+
+/* Selected date circle */
+.datepicker-calendar-container .is-selected {
+  background-color: #26a69a !important;
+  color: #fff !important;
+}
+
+/* Today’s date highlight */
+.datepicker-calendar-container .is-today {
+  border: 1px solid #26a69a !important;
+}
+
+/* Month and year header */
+.datepicker-controls .datepicker-month,
+.datepicker-controls .datepicker-year {
+  color: #000 !important;
+}

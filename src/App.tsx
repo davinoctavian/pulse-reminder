@@ -5,24 +5,35 @@ import M from "materialize-css";
 function App() {
   const [reminders, setReminders] = useState([]);
   const [reminderType, setReminderType] = useState("");
+  const [consecutiveBase, setConsecutiveBase] = useState("");
+  const [stopButton, setStopButton] = useState(false);
+  const [stopTimerButton, setStopTimerButton] = useState(false);
   useEffect(() => {
     const elems = document.querySelectorAll(".tooltipped");
     const modalElems = document.querySelectorAll(".modal");
     const selectElems = document.querySelectorAll("select");
+    M.FormSelect.init(selectElems);
+    M.Tooltip.init(elems);
+    M.Modal.init(modalElems);
+  }, []);
+
+  useEffect(() => {
+    const selectElems = document.querySelectorAll("select");
+    M.FormSelect.init(selectElems);
+
     const dateElems = document.querySelectorAll(".datepicker");
     const timeElems = document.querySelectorAll(".timepicker");
     M.Datepicker.init(dateElems, {
       format: "yyyy-mm-dd",
       autoClose: true,
+      container: document.body,
     });
     M.Timepicker.init(timeElems, {
       twelveHour: false,
       autoClose: true,
+      container: "body",
     });
-    M.FormSelect.init(selectElems);
-    M.Tooltip.init(elems);
-    M.Modal.init(modalElems);
-  }, []);
+  }, [reminderType, consecutiveBase]);
 
   return (
     <div
@@ -60,40 +71,85 @@ function App() {
       </footer>
       <div id="setting-modal" className="modal">
         <div className="modal-content">
-          <h4>Modal Header</h4>
+          <h4 className="color-dark mb-40">Set Reminder</h4>
           <div className="input-field col s12">
             <select
+              id="reminder_type"
               value={reminderType}
               onChange={(e) => setReminderType(e.target.value)}
             >
-              <option value="" disabled selected>
+              <option value="" disabled>
                 Choose Type
               </option>
               <option value="consecutive">Consecutive</option>
               <option value="date">Date Based</option>
             </select>
-            <label>Type</label>
+            <label htmlFor="reminder_type">Type</label>
           </div>
           {reminderType === "consecutive" && (
             <div>
               <div className="input-field col s12">
-                <input
-                  id="consecutive_count"
-                  type="number"
-                  className="validate"
-                />
-                <label htmlFor="consecutive_count">Consecutive Count</label>
+                <select
+                  id="consecutive_base"
+                  value={consecutiveBase}
+                  onChange={(e) => setConsecutiveBase(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Choose Based on
+                  </option>
+                  <option value="time">Time</option>
+                  <option value="date">Date</option>
+                </select>
+                <label htmlFor="consecutive_base">Based on</label>
               </div>
-              <div className="input-field col s12">
-                <input
-                  id="consecutive_time"
-                  type="number"
-                  className="validate"
-                />
-                <label htmlFor="consecutive_time">
-                  Consecutive Time (minutes)
-                </label>
-              </div>
+              {consecutiveBase === "time" && (
+                <>
+                  <div className="input-field col s12">
+                    <input id="start_time" type="text" className="timepicker" />
+                    <label htmlFor="start_time">Start Time</label>
+                  </div>
+                  <div className="input-field col s12">
+                    <input id="consecutive_time" type="number" />
+                    <label htmlFor="consecutive_time">Timer (minutes)</label>
+                  </div>
+                  <div className="col s12 left-align">
+                    <label>
+                      <input
+                        type="checkbox"
+                        className="filled-in"
+                        checked={stopButton}
+                        onChange={(e) => setStopButton(e.target.checked)}
+                      />
+                      <span>Adding Stop Button</span>
+                    </label>
+                  </div>
+                  {stopButton && (
+                    <div className="col s12 left-align">
+                      <label>
+                        <input
+                          type="checkbox"
+                          className="filled-in"
+                          checked={stopTimerButton}
+                          onChange={(e) => setStopTimerButton(e.target.checked)}
+                        />
+                        <span>Apply Timer After Stop</span>
+                      </label>
+                    </div>
+                  )}
+                </>
+              )}
+              {consecutiveBase === "date" && (
+                <>
+                  <div className="input-field col s12">
+                    <input id="start_date" type="text" className="datepicker" />
+                    <label htmlFor="start_date">Start Date</label>
+                  </div>
+                  <div className="input-field col s12">
+                    <input id="start_time" type="text" className="timepicker" />
+                    <label htmlFor="start_time">Start Time</label>
+                  </div>
+                </>
+              )}
             </div>
           )}
           {reminderType === "date" && (
@@ -110,7 +166,7 @@ function App() {
           )}
         </div>
         <div className="modal-footer">
-          <a className="modal-close waves-effect waves-green btn-flat">Agree</a>
+          <a className="modal-close waves-effect waves-green btn-flat">Close</a>
         </div>
       </div>
     </div>
