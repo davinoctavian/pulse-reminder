@@ -41,12 +41,12 @@ function ConsecutiveSettings({
         <>
           <div className="input-field col s12">
             <input
-              id="start_time"
+              id="start_time_ontime"
               type="text"
               className="timepicker"
               onChange={(e) => setTimeReminder(e.target.value)}
             />
-            <label htmlFor="start_time">Start Time</label>
+            <label htmlFor="start_time_ontime">Start Time</label>
           </div>
           <div className="input-field col s12">
             <input
@@ -97,12 +97,12 @@ function ConsecutiveSettings({
           </div>
           <div className="input-field col s12">
             <input
-              id="start_time"
+              id="start_time_ondate"
               type="text"
               className="timepicker"
               onChange={(e) => setTimeReminder(e.target.value)}
             />
-            <label htmlFor="start_time">Start Time</label>
+            <label htmlFor="start_time_ondate">Start Time</label>
           </div>
         </>
       )}

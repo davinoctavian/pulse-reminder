@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Reminder } from "../interface/Reminder";
 import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
@@ -13,6 +13,10 @@ interface ReminderModalProps {
   stopTimerButton: boolean;
   setStopTimerButton: (val: boolean) => void;
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
+  dateReminder: string;
+  timeReminder: string;
+  setDateReminder: (val: string) => void;
+  setTimeReminder: (val: string) => void;
 }
 
 function Settings({
@@ -25,10 +29,29 @@ function Settings({
   setStopTimerButton,
   stopTimerButton,
   setReminders,
+  dateReminder,
+  timeReminder,
+  setDateReminder,
+  setTimeReminder,
 }: ReminderModalProps) {
-  const [dateReminder, setDateReminder] = useState("");
-  const [timeReminder, setTimeReminder] = useState("");
   const [consecutiveTime, setConsecutiveTime] = useState(0);
+
+  useEffect(() => {
+    setDateReminder("");
+    setTimeReminder("");
+    setConsecutiveTime(0);
+    setConsecutiveBase("");
+    setStopButton(false);
+    setStopTimerButton(false);
+  }, [reminderType]);
+
+  useEffect(() => {
+    setTimeReminder("");
+    setDateReminder("");
+    setConsecutiveTime(0);
+    setStopButton(false);
+    setStopTimerButton(false);
+  }, [consecutiveBase]);
 
   const handleSave = () => {
     const newReminder: Reminder = {
@@ -51,12 +74,13 @@ function Settings({
     setReminders((prev) => [...prev, newReminder]);
   };
 
-  const isValid =
+  const isValid: boolean = !!(
     (reminderType === "consecutive" &&
       consecutiveBase &&
-      ((consecutiveBase === "time" && consecutiveTime) ||
+      ((consecutiveBase === "time" && consecutiveTime && timeReminder) ||
         (consecutiveBase === "date" && dateReminder && timeReminder))) ||
-    (reminderType === "date" && dateReminder && timeReminder);
+    (reminderType === "date" && dateReminder && timeReminder)
+  );
 
   return (
     <div id="setting-modal" className="modal">

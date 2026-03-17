@@ -16,6 +16,8 @@ function App() {
   const [consecutiveBase, setConsecutiveBase] = useState("");
   const [stopButton, setStopButton] = useState(false);
   const [stopTimerButton, setStopTimerButton] = useState(false);
+  const [dateReminder, setDateReminder] = useState("");
+  const [timeReminder, setTimeReminder] = useState("");
 
   useEffect(() => {
     const elems = document.querySelectorAll(".tooltipped");
@@ -36,11 +38,30 @@ function App() {
       format: "yyyy-mm-dd",
       autoClose: true,
       container: document.body,
+      onSelect: (date: Date) => {
+        setDateReminder(date.toISOString().split("T")[0]);
+      },
     });
     M.Timepicker.init(timeElems, {
       twelveHour: false,
       autoClose: true,
       container: "body",
+      onCloseEnd: () => {
+        let val = "";
+        if (consecutiveBase === "time") {
+          val = (
+            document.getElementById("start_time_ontime") as HTMLInputElement
+          )?.value;
+        } else if (consecutiveBase === "date") {
+          val = (
+            document.getElementById("start_time_ondate") as HTMLInputElement
+          )?.value;
+        } else {
+          val = (document.getElementById("time_reminder") as HTMLInputElement)
+            ?.value;
+        }
+        if (val) setTimeReminder(val);
+      },
     });
   }, [reminderType, consecutiveBase]);
 
@@ -66,6 +87,10 @@ function App() {
         setStopTimerButton={setStopTimerButton}
         stopTimerButton={stopTimerButton}
         setReminders={setReminders}
+        dateReminder={dateReminder}
+        timeReminder={timeReminder}
+        setDateReminder={setDateReminder}
+        setTimeReminder={setTimeReminder}
       />
     </div>
   );
