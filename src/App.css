@@ -19,16 +19,12 @@ main {
   align-content: center;
 }
 
-.list-reminder {
-  border: 1px solid #fff;
-}
-
 footer {
   margin-bottom: 20px;
 }
 
 .modal-content {
-  min-height: 280px;
+  min-height: 340px;
 }
 
 .modal-footer {
@@ -67,4 +63,13 @@ footer {
 .datepicker-controls .datepicker-month,
 .datepicker-controls .datepicker-year {
   color: #000 !important;
+}
+
+.collection {
+  border: none !important;
+  text-align: left;
+}
+.collection .collection-item {
+  border-bottom: none !important;
+  margin-bottom: 5px;
 }

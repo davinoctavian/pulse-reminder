@@ -4,6 +4,8 @@ import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
 
 interface ReminderModalProps {
+  remindderName: string;
+  setReminderName: (val: string) => void;
   reminderType: string;
   setReminderType: (val: string) => void;
   consecutiveBase: string;
@@ -20,6 +22,8 @@ interface ReminderModalProps {
 }
 
 function Settings({
+  remindderName,
+  setReminderName,
   reminderType,
   setReminderType,
   setConsecutiveBase,
@@ -55,6 +59,7 @@ function Settings({
 
   const handleSave = () => {
     const newReminder: Reminder = {
+      name: remindderName,
       type: reminderType,
       base: consecutiveBase,
       startDate:
@@ -86,6 +91,15 @@ function Settings({
     <div id="setting-modal" className="modal">
       <div className="modal-content">
         <h4 className="color-dark mb-40">Set Reminder</h4>
+        <div className="input-field col s12">
+          <input
+            id="reminder_name"
+            type="text"
+            value={remindderName}
+            onChange={(e) => setReminderName(e.target.value)}
+          />
+          <label htmlFor="reminder_name">Name</label>
+        </div>
         <ReminderTypeSelect
           reminderType={reminderType}
           setReminderType={setReminderType}

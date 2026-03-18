@@ -12,6 +12,7 @@ function App() {
     "reminders",
     [],
   );
+  const [reminderName, setReminderName] = useState("");
   const [reminderType, setReminderType] = useState("");
   const [consecutiveBase, setConsecutiveBase] = useState("");
   const [stopButton, setStopButton] = useState(false);
@@ -78,6 +79,8 @@ function App() {
         <AddReminderButton />
       </footer>
       <Settings
+        remindderName={reminderName}
+        setReminderName={setReminderName}
         reminderType={reminderType}
         setReminderType={setReminderType}
         setConsecutiveBase={setConsecutiveBase}

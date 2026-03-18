@@ -1,4 +1,5 @@
 export interface Reminder {
+  name: string;
   type: string;
   base?: string;
   startDate?: string;
