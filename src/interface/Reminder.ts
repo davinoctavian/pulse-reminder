@@ -7,4 +7,6 @@ export interface Reminder {
   consecutiveTime?: number;
   stopButton?: boolean;
   stopTimerButton?: boolean;
+  alarmFile?: string | null;
+  alarmFileName?: string | null;
 }

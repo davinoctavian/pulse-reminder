@@ -1,5 +1,8 @@
 interface Props {
   consecutiveBase: string;
+  consecutiveTime: number;
+  startDate: string;
+  startTime: string;
   setConsecutiveBase: (val: string) => void;
   stopButton: boolean;
   setStopButton: (val: boolean) => void;
@@ -12,6 +15,9 @@ interface Props {
 
 function ConsecutiveSettings({
   consecutiveBase,
+  consecutiveTime,
+  startDate,
+  startTime,
   setConsecutiveBase,
   stopButton,
   setStopButton,
@@ -44,6 +50,7 @@ function ConsecutiveSettings({
               id="start_time_ontime"
               type="text"
               className="timepicker"
+              value={startTime}
               onChange={(e) => setTimeReminder(e.target.value)}
             />
             <label htmlFor="start_time_ontime">Start Time</label>
@@ -52,11 +59,12 @@ function ConsecutiveSettings({
             <input
               id="consecutive_time"
               type="number"
+              value={consecutiveTime}
               onChange={(e) =>
                 setConsecutiveTime(parseInt(e.target.value) || 0)
               }
             />
-            <label htmlFor="consecutive_time">Timer (minutes)</label>
+            <label htmlFor="consecutive_time">Every (minutes)</label>
           </div>
           <div className="col s12 left-align">
             <label>
@@ -91,6 +99,7 @@ function ConsecutiveSettings({
               id="start_date"
               type="text"
               className="datepicker"
+              value={startDate}
               onChange={(e) => setDateReminder(e.target.value)}
             />
             <label htmlFor="start_date">Start Date</label>
@@ -100,6 +109,7 @@ function ConsecutiveSettings({
               id="start_time_ondate"
               type="text"
               className="timepicker"
+              value={startTime}
               onChange={(e) => setTimeReminder(e.target.value)}
             />
             <label htmlFor="start_time_ondate">Start Time</label>

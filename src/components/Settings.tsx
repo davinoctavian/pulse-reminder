@@ -2,81 +2,132 @@ import { useEffect, useState } from "react";
 import type { Reminder } from "../interface/Reminder";
 import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
+import useFileToBase64 from "../hooks/useFiletoBase64";
 
 interface ReminderModalProps {
-  remindderName: string;
-  setReminderName: (val: string) => void;
-  reminderType: string;
-  setReminderType: (val: string) => void;
-  consecutiveBase: string;
-  setConsecutiveBase: (val: string) => void;
-  stopButton: boolean;
-  setStopButton: (val: boolean) => void;
-  stopTimerButton: boolean;
-  setStopTimerButton: (val: boolean) => void;
-  setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>;
-  dateReminder: string;
-  timeReminder: string;
-  setDateReminder: (val: string) => void;
-  setTimeReminder: (val: string) => void;
+  reminder?: Reminder;
+  onSave: (reminder: Reminder) => void;
 }
 
-function Settings({
-  remindderName,
-  setReminderName,
-  reminderType,
-  setReminderType,
-  setConsecutiveBase,
-  consecutiveBase,
-  setStopButton,
-  stopButton,
-  setStopTimerButton,
-  stopTimerButton,
-  setReminders,
-  dateReminder,
-  timeReminder,
-  setDateReminder,
-  setTimeReminder,
-}: ReminderModalProps) {
-  const [consecutiveTime, setConsecutiveTime] = useState(0);
+function Settings({ reminder, onSave }: ReminderModalProps) {
+  const [reminderName, setReminderName] = useState(reminder?.name || "");
+  const [reminderType, setReminderType] = useState(reminder?.type || "");
+  const [consecutiveBase, setConsecutiveBase] = useState(reminder?.base || "");
+  const [dateReminder, setDateReminder] = useState(reminder?.startDate || "");
+  const [timeReminder, setTimeReminder] = useState(reminder?.startTime || "");
+  const [consecutiveTime, setConsecutiveTime] = useState(
+    reminder?.consecutiveTime || 0,
+  );
+  const [stopButton, setStopButton] = useState(reminder?.stopButton || false);
+  const [stopTimerButton, setStopTimerButton] = useState(
+    reminder?.stopTimerButton || false,
+  );
+  const [alarmFile, setAlarmFile] = useState<string | null>(null);
+  const [alarmFileName, setAlarmFileName] = useState<string | null>(
+    reminder?.alarmFileName || null,
+  );
 
   useEffect(() => {
-    setDateReminder("");
-    setTimeReminder("");
-    setConsecutiveTime(0);
-    setConsecutiveBase("");
-    setStopButton(false);
-    setStopTimerButton(false);
-  }, [reminderType]);
+    if (reminder) {
+      setReminderName(reminder.name || "");
+      setReminderType(reminder.type || "");
+      setConsecutiveBase(reminder.base || "");
+      setDateReminder(reminder.startDate || "");
+      setTimeReminder(reminder.startTime || "");
+      setConsecutiveTime(reminder.consecutiveTime || 0);
+      setStopButton(reminder.stopButton || false);
+      setStopTimerButton(reminder.stopTimerButton || false);
+      setAlarmFile(reminder.alarmFile || null);
+      setAlarmFileName(reminder.alarmFileName || null);
+    } else {
+      setReminderName("");
+      setReminderType("");
+      setConsecutiveBase("");
+      setDateReminder("");
+      setTimeReminder("");
+      setConsecutiveTime(0);
+      setStopButton(false);
+      setStopTimerButton(false);
+      setAlarmFile(null);
+      setAlarmFileName(null);
+    }
+  }, [reminder]);
 
   useEffect(() => {
-    setTimeReminder("");
-    setDateReminder("");
-    setConsecutiveTime(0);
-    setStopButton(false);
-    setStopTimerButton(false);
-  }, [consecutiveBase]);
+    const selectElems = document.querySelectorAll("select");
+    M.FormSelect.init(selectElems);
+
+    const dateElems = document.querySelectorAll(".datepicker");
+    const timeElems = document.querySelectorAll(".timepicker");
+    M.Datepicker.init(dateElems, {
+      format: "yyyy-mm-dd",
+      autoClose: true,
+      container: document.body,
+      onSelect: (date: Date) => {
+        setDateReminder(date.toISOString().split("T")[0]);
+      },
+    });
+    M.Timepicker.init(timeElems, {
+      twelveHour: false,
+      autoClose: true,
+      container: "body",
+      onCloseEnd: () => {
+        let val = "";
+        if (consecutiveBase === "time") {
+          val = (
+            document.getElementById("start_time_ontime") as HTMLInputElement
+          )?.value;
+        } else if (consecutiveBase === "date") {
+          val = (
+            document.getElementById("start_time_ondate") as HTMLInputElement
+          )?.value;
+        } else {
+          val = (document.getElementById("time_reminder") as HTMLInputElement)
+            ?.value;
+        }
+        if (val) setTimeReminder(val);
+      },
+    });
+  }, [reminderType, consecutiveBase]);
 
   const handleSave = () => {
+    let valTime = "";
+    if (consecutiveBase === "time") {
+      valTime = (
+        document.getElementById("start_time_ontime") as HTMLInputElement
+      )?.value;
+    } else if (consecutiveBase === "date") {
+      valTime = (
+        document.getElementById("start_time_ondate") as HTMLInputElement
+      )?.value;
+    } else {
+      valTime = (document.getElementById("time_reminder") as HTMLInputElement)
+        ?.value;
+    }
+    let valDate = "";
+    if (reminderType === "date") {
+      valDate = (document.getElementById("date_reminder") as HTMLInputElement)
+        ?.value;
+    } else {
+      valDate = (document.getElementById("start_date") as HTMLInputElement)
+        ?.value;
+    }
     const newReminder: Reminder = {
-      name: remindderName,
+      name: reminderName,
       type: reminderType,
       base: consecutiveBase,
-      startDate:
-        (document.getElementById("start_date") as HTMLInputElement)?.value ||
-        undefined,
-      startTime:
-        (document.getElementById("start_time") as HTMLInputElement)?.value ||
-        undefined,
+      startDate: valDate,
+      startTime: valTime,
       consecutiveTime: parseInt(
         (document.getElementById("consecutive_time") as HTMLInputElement)
           ?.value || "0",
       ),
       stopButton,
       stopTimerButton,
+      alarmFile,
+      alarmFileName: alarmFileName || undefined,
     };
-
-    setReminders((prev) => [...prev, newReminder]);
+    onSave(newReminder);
   };
 
   const isValid: boolean = !!(
@@ -95,7 +146,7 @@ function Settings({
           <input
             id="reminder_name"
             type="text"
-            value={remindderName}
+            value={reminderName}
             onChange={(e) => setReminderName(e.target.value)}
           />
           <label htmlFor="reminder_name">Name</label>
@@ -104,10 +155,40 @@ function Settings({
           reminderType={reminderType}
           setReminderType={setReminderType}
         />
+        <div className="file-field input-field col s12">
+          <div className="btn">
+            <span>Alarm Sound</span>
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={async (e) => {
+                if (e.target.files && e.target.files[0]) {
+                  const file = e.target.files[0];
+                  const base64 = await useFileToBase64(file);
+                  setAlarmFile(base64);
+                  setAlarmFileName(file.name);
+                }
+              }}
+            />
+          </div>
+          <div className="file-path-wrapper">
+            <input
+              name="alarm_file"
+              className="file-path validate"
+              type="text"
+              readOnly
+              value={alarmFileName || ""}
+              placeholder="No file chosen"
+            />
+          </div>
+        </div>
 
         {reminderType === "consecutive" && (
           <ConsecutiveSettings
             consecutiveBase={consecutiveBase}
+            consecutiveTime={consecutiveTime}
+            startDate={dateReminder}
+            startTime={timeReminder}
             setConsecutiveBase={setConsecutiveBase}
             stopButton={stopButton}
             setStopButton={setStopButton}

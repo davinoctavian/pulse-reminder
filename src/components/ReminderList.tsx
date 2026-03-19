@@ -2,9 +2,11 @@ import type { Reminder } from "../interface/Reminder";
 
 interface ReminderListProps {
   reminders: Reminder[];
+  onEdit: (index: number) => void;
+  onDelete: (index: number) => void;
 }
 
-function ReminderList({ reminders }: ReminderListProps) {
+function ReminderList({ reminders, onEdit, onDelete }: ReminderListProps) {
   return (
     <div className="col s12">
       <div className="row list-reminder">
@@ -13,17 +15,6 @@ function ReminderList({ reminders }: ReminderListProps) {
         ) : (
           <ul className="collection">
             {reminders.map((reminder, index) => (
-              // <div key={index} className="col s12 card-panel teal lighten-2">
-              //   <strong>{reminder.type}</strong>
-              //   {reminder.base && <p>Base: {reminder.base}</p>}
-              //   {reminder.startDate && <p>Date: {reminder.startDate}</p>}
-              //   {reminder.startTime && <p>Time: {reminder.startTime}</p>}
-              //   {reminder.consecutiveTime && (
-              //     <p>Timer: {reminder.consecutiveTime} min</p>
-              //   )}
-              //   {reminder.stopButton && <p>Stop Button: Enabled</p>}
-              //   {reminder.stopTimerButton && <p>Stop Timer After Stop: Yes</p>}
-              // </div>
               <li
                 key={index}
                 className="collection-item avatar blue-text text-darken-2 cyan accent-2"
@@ -31,14 +22,36 @@ function ReminderList({ reminders }: ReminderListProps) {
                 <i className="material-icons circle red">play_arrow</i>
                 <span className="title">{reminder.name}</span>
                 <p>
-                  {reminder.type} - {reminder.base} <br />
-                  {reminder.consecutiveTime && (
-                    <span>Timer: {reminder.consecutiveTime} min</span>
+                  Type : {reminder.type} {reminder.base && `(${reminder.base})`}{" "}
+                  <br />
+                  {reminder.type === "consecutive" && (
+                    <span>Every : {reminder.consecutiveTime} min</span>
+                  )}
+                  {reminder.type === "date" && (
+                    <span>
+                      Start : {reminder.startDate} at {reminder.startTime}
+                    </span>
                   )}
                 </p>
-                <a href="#!" className="secondary-content">
-                  <i className="material-icons">details</i>
-                </a>
+                <div className="secondary-content ">
+                  <a
+                    href="#setting-modal"
+                    data-tooltip="Details"
+                    className="tooltipped modal-trigger"
+                    onClick={() => onEdit(index)}
+                  >
+                    <i className="material-icons">details</i>
+                  </a>
+                  <br />
+                  <a
+                    href="#!"
+                    data-tooltip="Delete"
+                    className="tooltipped"
+                    onClick={() => onDelete(index)}
+                  >
+                    <i className="material-icons red-text">delete</i>
+                  </a>
+                </div>
               </li>
             ))}
           </ul>
