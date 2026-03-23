@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.2.0",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/local-notifications": "^8.0.2",
     "materialize-css": "^1.0.0-rc.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

@@ -6,6 +6,9 @@ import ReminderList from "./components/ReminderList";
 import AddReminderButton from "./components/AddReminderButton";
 import usePersistentState from "./hooks/usePersistentState";
 import type { Reminder } from "./interface/Reminder";
+import scheduleReminders from "./hooks/scheduleReminder";
+import AlarmWorker from "./alarmWorker?worker";
+const worker = new AlarmWorker();
 
 function App() {
   const [reminders, setReminders] = usePersistentState<Reminder[]>(
@@ -32,6 +35,25 @@ function App() {
   };
 
   useEffect(() => {
+    worker.onmessage = (event) => {
+      if (event.data.type === "TRIGGER_ALARM") {
+        const reminder = event.data.reminder;
+        if (Notification.permission === "granted") {
+          const notification = new Notification("Reminder Alert", {
+            body: `Reminder: ${reminder.name}`,
+            requireInteraction: true,
+          });
+
+          notification.onclick = () => {
+            if (reminder.alarmFile) {
+              const audio = new Audio(reminder.alarmFile);
+              audio.play();
+            }
+          };
+        }
+      }
+    };
+
     const elems = document.querySelectorAll(".tooltipped");
     const modalElems = document.querySelectorAll(".modal");
     const selectElems = document.querySelectorAll("select");
@@ -46,6 +68,11 @@ function App() {
       },
     });
   }, []);
+
+  useEffect(() => {
+    scheduleReminders(reminders);
+    worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
+  }, [reminders]);
 
   return (
     <div

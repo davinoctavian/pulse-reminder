@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { Reminder } from "../interface/Reminder";
 import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
-import useFileToBase64 from "../hooks/useFiletoBase64";
+import useFileToBase64 from "../hooks/useFileToBase64";
+import defaultAlarm from "../assets/sound/default-alarm.mp3";
 
 interface ReminderModalProps {
   reminder?: Reminder;
@@ -22,9 +23,9 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
   const [stopTimerButton, setStopTimerButton] = useState(
     reminder?.stopTimerButton || false,
   );
-  const [alarmFile, setAlarmFile] = useState<string | null>(null);
-  const [alarmFileName, setAlarmFileName] = useState<string | null>(
-    reminder?.alarmFileName || null,
+  const [alarmFile, setAlarmFile] = useState<string>(defaultAlarm);
+  const [alarmFileName, setAlarmFileName] = useState<string>(
+    reminder?.alarmFileName || "Default Alarm",
   );
 
   useEffect(() => {
@@ -37,8 +38,8 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setConsecutiveTime(reminder.consecutiveTime || 0);
       setStopButton(reminder.stopButton || false);
       setStopTimerButton(reminder.stopTimerButton || false);
-      setAlarmFile(reminder.alarmFile || null);
-      setAlarmFileName(reminder.alarmFileName || null);
+      setAlarmFile(reminder.alarmFile || defaultAlarm);
+      setAlarmFileName(reminder.alarmFileName || "Default Alarm");
     } else {
       setReminderName("");
       setReminderType("");
@@ -48,8 +49,8 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setConsecutiveTime(0);
       setStopButton(false);
       setStopTimerButton(false);
-      setAlarmFile(null);
-      setAlarmFileName(null);
+      setAlarmFile(defaultAlarm);
+      setAlarmFileName("Default Alarm");
     }
   }, [reminder]);
 
@@ -167,6 +168,9 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
                   const base64 = await useFileToBase64(file);
                   setAlarmFile(base64);
                   setAlarmFileName(file.name);
+                } else {
+                  setAlarmFile(defaultAlarm);
+                  setAlarmFileName("Default Alarm");
                 }
               }}
             />
@@ -206,6 +210,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
                 id="date_reminder"
                 type="text"
                 className="datepicker"
+                value={dateReminder}
                 onChange={(e) => setDateReminder(e.target.value)}
               />
               <label htmlFor="date_reminder">Date</label>
@@ -215,6 +220,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
                 id="time_reminder"
                 type="text"
                 className="timepicker"
+                value={timeReminder}
                 onChange={(e) => setTimeReminder(e.target.value)}
               />
               <label htmlFor="time_reminder">Time</label>
