@@ -32,7 +32,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
         title: "Reminder Alert",
         body: `Reminder: ${reminder.name}`,
         schedule: { at: reminderDateTime },
-        sound: reminder.nativeSound || "default-alarm.mp3",
+        sound: reminder.nativeSound || "defaultalarm.mp3",
       };
     })
     .filter(Boolean) as any[];
@@ -77,7 +77,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
               title: "Reminder Alert",
               body: `Reminder: ${reminder.name}`,
               schedule: { at: nextDateTime },
-              sound: reminder.nativeSound || "default-alarm.mp3",
+              sound: reminder.nativeSound || "defaultalarm.mp3",
             },
           ],
         });
