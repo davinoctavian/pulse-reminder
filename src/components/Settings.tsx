@@ -127,6 +127,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       stopTimerButton,
       alarmFile,
       alarmFileName: alarmFileName || undefined,
+      isRinging: false,
     };
     onSave(newReminder);
   };

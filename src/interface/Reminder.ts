@@ -9,5 +9,6 @@ export interface Reminder {
   stopTimerButton?: boolean;
   alarmFile?: string | null;
   alarmFileName?: string | null;
-  nativeSound?: "default-alarm.mp3";
+  nativeSound?: "defaultalarm.mp3";
+  isRinging: boolean;
 }

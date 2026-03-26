@@ -36,8 +36,20 @@ footer {
 .mb-40 {
   margin-bottom: 40px;
 }
+.mr-5 {
+  margin-right: 5px;
+}
 .color-dark {
   color: #000;
+}
+.collection .collection-item.border-solid-white {
+  border-bottom: 1px solid #fff !important;
+}
+.border-solid-white {
+  border: 1px solid #fff !important;
+}
+.border-r10 {
+  border-radius: 10px !important;
 }
 
 /* Datepicker text color */

@@ -6,7 +6,7 @@ function AddReminderButton() {
       className="btn-floating btn-large waves-effect waves-light red tooltipped modal-trigger"
       href="#setting-modal"
     >
-      <i className="material-icons">add</i>
+      <i className="material-icons">add_alarm</i>
     </a>
   );
 }

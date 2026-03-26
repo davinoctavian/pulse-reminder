@@ -19,6 +19,7 @@ setInterval(() => {
           `${reminder.startDate}T${reminder.startTime}`,
         );
         if (reminderDateTime.getTime() - now.getTime() < 30000) {
+          reminder.isRinging = true;
           self.postMessage({ type: "TRIGGER_ALARM", reminder });
         }
       }
@@ -28,6 +29,7 @@ setInterval(() => {
         const reminderDateTime = new Date();
         reminderDateTime.setHours(hours, minutes, 0, 0);
         if (Math.abs(reminderDateTime.getTime() - now.getTime()) < 30000) {
+          reminder.isRinging = true;
           self.postMessage({ type: "TRIGGER_ALARM", reminder });
 
           const nextDateTime = new Date(

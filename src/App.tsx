@@ -34,6 +34,37 @@ function App() {
     setReminders((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleSnoozeReminder = (index: number) => {
+    const reminder = reminders[index];
+    if (reminder) {
+      const snoozedReminder = {
+        ...reminder,
+        startTime: new Date(
+          Date.now() + 5 * 60 * 1000, // Snooze for 5 minutes
+        )
+          .toTimeString()
+          .slice(0, 5),
+        isRinging: false,
+      };
+      setReminders((prev) =>
+        prev.map((r, i) => (i === index ? snoozedReminder : r)),
+      );
+    }
+  };
+
+  const handleStopReminder = (index: number) => {
+    const reminder = reminders[index];
+    if (reminder) {
+      const stoppedReminder = {
+        ...reminder,
+        isRinging: false,
+      };
+      setReminders((prev) =>
+        prev.map((r, i) => (i === index ? stoppedReminder : r)),
+      );
+    }
+  };
+
   useEffect(() => {
     worker.onmessage = (event) => {
       if (event.data.type === "TRIGGER_ALARM") {
@@ -85,6 +116,8 @@ function App() {
           reminders={reminders}
           onEdit={setSelectedReminderIndex}
           onDelete={handleDeleteReminder}
+          onSnooze={handleSnoozeReminder}
+          onStop={handleStopReminder}
         />
       </main>
       <footer>
