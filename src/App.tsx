@@ -55,6 +55,13 @@ function App() {
   const handleStopReminder = (index: number) => {
     const reminder = reminders[index];
     if (reminder) {
+      if (reminder.type === "consecutive" && reminder.startTime) {
+        reminder.startTime = new Date(
+          Date.now() + (reminder.consecutiveTime ?? 0) * 1000,
+        )
+          .toTimeString()
+          .slice(0, 5);
+      }
       const stoppedReminder = {
         ...reminder,
         isRinging: false,
@@ -66,19 +73,37 @@ function App() {
   };
 
   useEffect(() => {
+    let alarmAudio: HTMLAudioElement | null = null;
+
     worker.onmessage = (event) => {
-      if (event.data.type === "TRIGGER_ALARM") {
-        const reminder = event.data.reminder;
+      const { type, payload } = event.data;
+      if (type === "TRIGGER_ALARM") {
+        setReminders((prev) =>
+          prev.map((r) => (r.name === payload.name ? { ...r, ...payload } : r)),
+        );
+
         if (Notification.permission === "granted") {
           const notification = new Notification("Reminder Alert", {
-            body: `Reminder: ${reminder.name}`,
+            body: `Reminder: ${payload.name}`,
             requireInteraction: true,
           });
 
+          // notification.onclick = () => {
+          //   if (payload.alarmFile) {
+          //     const audio = new Audio(payload.alarmFile);
+          //     audio.play();
+          //   }
+          // };
+          // Start repeating sound
           notification.onclick = () => {
-            if (reminder.alarmFile) {
-              const audio = new Audio(reminder.alarmFile);
-              audio.play();
+            if (payload.alarmFile) {
+              if (alarmAudio) {
+                alarmAudio.pause();
+                alarmAudio = null;
+              }
+              alarmAudio = new Audio(payload.alarmFile);
+              alarmAudio.loop = true;
+              alarmAudio.play();
             }
           };
         }

@@ -20,7 +20,7 @@ setInterval(() => {
         );
         if (reminderDateTime.getTime() - now.getTime() < 30000) {
           reminder.isRinging = true;
-          self.postMessage({ type: "TRIGGER_ALARM", reminder });
+          self.postMessage({ type: "TRIGGER_ALARM", payload: reminder });
         }
       }
     } else {
@@ -28,22 +28,12 @@ setInterval(() => {
         const [hours, minutes] = reminder.startTime.split(":").map(Number);
         const reminderDateTime = new Date();
         reminderDateTime.setHours(hours, minutes, 0, 0);
-        if (Math.abs(reminderDateTime.getTime() - now.getTime()) < 30000) {
+        console.log("Calculated reminder time:", reminderDateTime);
+        if (reminderDateTime.getTime() - now.getTime() < 30000) {
           reminder.isRinging = true;
-          self.postMessage({ type: "TRIGGER_ALARM", reminder });
-
-          const nextDateTime = new Date(
-            reminderDateTime.getTime() + 20 * 60 * 1000,
-          );
-
-          const nextHours = String(nextDateTime.getHours()).padStart(2, "0");
-          const nextMinutes = String(nextDateTime.getMinutes()).padStart(
-            2,
-            "0",
-          );
-          reminder.startTime = `${nextHours}:${nextMinutes}`;
+          self.postMessage({ type: "TRIGGER_ALARM", payload: reminder });
         }
       }
     }
   });
-}, 30000);
+}, 10000);

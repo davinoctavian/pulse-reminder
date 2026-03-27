@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Reminder } from "../interface/Reminder";
 import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
@@ -27,6 +27,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
   const [alarmFileName, setAlarmFileName] = useState<string>(
     reminder?.alarmFileName || "Default Alarm",
   );
+  const justOpened = useRef(false);
 
   useEffect(() => {
     if (reminder) {
@@ -52,7 +53,30 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setAlarmFile(defaultAlarm);
       setAlarmFileName("Default Alarm");
     }
+    justOpened.current = true;
   }, [reminder]);
+
+  useEffect(() => {
+    if (justOpened.current) {
+      justOpened.current = false;
+      return;
+    }
+
+    if (reminderType === "date") {
+      setConsecutiveBase("");
+      setConsecutiveTime(0);
+      setDateReminder("");
+      setTimeReminder("");
+    } else if (reminderType === "consecutive") {
+      setDateReminder("");
+      setTimeReminder("");
+    } else {
+      setDateReminder("");
+      setTimeReminder("");
+      setConsecutiveBase("");
+      setConsecutiveTime(0);
+    }
+  }, [reminderType]);
 
   useEffect(() => {
     const selectElems = document.querySelectorAll("select");
@@ -65,7 +89,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       autoClose: true,
       container: document.body,
       onSelect: (date: Date) => {
-        setDateReminder(date.toISOString().split("T")[0]);
+        setDateReminder(date.toLocaleDateString("en-CA"));
       },
     });
     M.Timepicker.init(timeElems, {
