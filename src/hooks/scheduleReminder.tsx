@@ -15,7 +15,6 @@ export default async function scheduleReminders(reminders: Reminder[]) {
         reminder.startDate &&
         reminder.startTime
       ) {
-        // One-time reminder with date + time
         reminderDateTime = new Date(
           `${reminder.startDate}T${reminder.startTime}`,
         );
@@ -33,6 +32,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
         body: `Reminder: ${reminder.name}`,
         schedule: { at: reminderDateTime },
         sound: reminder.nativeSound || "defaultalarm.mp3",
+        actionTypeId: "REMINDER_ACTIONS",
       };
     })
     .filter(Boolean) as any[];
@@ -41,7 +41,6 @@ export default async function scheduleReminders(reminders: Reminder[]) {
     await LocalNotifications.schedule({ notifications });
   }
 
-  // Handle consecutive rescheduling (+20 minutes)
   LocalNotifications.addListener(
     "localNotificationActionPerformed",
     async (event) => {
@@ -53,22 +52,8 @@ export default async function scheduleReminders(reminders: Reminder[]) {
       );
       if (!reminder) return;
 
-      if (reminder.type === "consecutive" && reminder.startTime) {
-        // Parse current time
-        const [hours, minutes] = reminder.startTime.split(":").map(Number);
-        const reminderDateTime = new Date();
-        reminderDateTime.setHours(hours, minutes, 0, 0);
-
-        // Add 20 minutes
-        const nextDateTime = new Date(
-          reminderDateTime.getTime() + 20 * 60 * 1000,
-        );
-
-        // Update reminder.startTime string
-        const nextHours = String(nextDateTime.getHours()).padStart(2, "0");
-        const nextMinutes = String(nextDateTime.getMinutes()).padStart(2, "0");
-        reminder.startTime = `${nextHours}:${nextMinutes}`;
-
+      if (event.actionId === "SNOOZE") {
+        const reminderDateTime = new Date(Date.now() + 5 * 60 * 1000);
         // Reschedule notification
         await LocalNotifications.schedule({
           notifications: [
@@ -76,11 +61,54 @@ export default async function scheduleReminders(reminders: Reminder[]) {
               id: Date.now(), // new unique ID
               title: "Reminder Alert",
               body: `Reminder: ${reminder.name}`,
-              schedule: { at: nextDateTime },
+              schedule: { at: reminderDateTime },
               sound: reminder.nativeSound || "defaultalarm.mp3",
             },
           ],
         });
+      }
+      if (event.actionId === "STOP") {
+        if (reminder.type === "consecutive" && reminder.startTime) {
+          // Parse current time
+          const [hours, minutes] = reminder.startTime.split(":").map(Number);
+          const reminderDateTime = new Date();
+          reminderDateTime.setHours(hours, minutes, 0, 0);
+
+          const nextDateTime = new Date(
+            reminderDateTime.getTime() +
+              (reminder.consecutiveTime ?? 0) * 60 * 1000,
+          );
+
+          // Reschedule notification
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                id: Date.now(), // new unique ID
+                title: "Reminder Alert",
+                body: `Reminder: ${reminder.name}`,
+                schedule: { at: nextDateTime },
+                sound: reminder.nativeSound || "defaultalarm.mp3",
+              },
+            ],
+          });
+        } else {
+          const reminderDateTime = new Date();
+          reminderDateTime.setDate(
+            reminder.startDate
+              ? new Date(reminder.startDate).getDate()
+              : reminderDateTime.getDate(),
+          );
+          reminderDateTime.setHours(
+            reminder.startTime
+              ? parseInt(reminder.startTime.split(":")[0])
+              : reminderDateTime.getHours(),
+            reminder.startTime
+              ? parseInt(reminder.startTime.split(":")[1])
+              : reminderDateTime.getMinutes(),
+            0,
+            0,
+          );
+        }
       }
     },
   );

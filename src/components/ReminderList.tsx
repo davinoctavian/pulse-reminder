@@ -27,7 +27,7 @@ function ReminderList({
                 return (
                   <li
                     key={index}
-                    className="collection-item avatar blue-text text-darken-2 cyan accent-2"
+                    className="collection-item avatar blue-text text-darken-2 cyan accent-2 border-r10"
                   >
                     <i className="material-icons circle red">access_alarm</i>
                     <span className="title">{reminder.name}</span>

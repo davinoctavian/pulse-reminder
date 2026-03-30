@@ -151,6 +151,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       stopTimerButton,
       alarmFile,
       alarmFileName: alarmFileName || undefined,
+      nativeSound: alarmFile !== defaultAlarm ? alarmFile : "defaultalarm.mp3",
       isRinging: false,
     };
     onSave(newReminder);
@@ -263,7 +264,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
         >
           Save
         </button>
-        <button className="modal-close waves-effect waves-light btn grey lighten-1">
+        <button className="modal-close waves-effect waves-light btn red lighten-1">
           Close
         </button>
       </div>

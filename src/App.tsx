@@ -8,7 +8,34 @@ import usePersistentState from "./hooks/usePersistentState";
 import type { Reminder } from "./interface/Reminder";
 import scheduleReminders from "./hooks/scheduleReminder";
 import AlarmWorker from "./alarmWorker?worker";
+import { LocalNotifications } from "@capacitor/local-notifications";
 const worker = new AlarmWorker();
+let alarmAudio: HTMLAudioElement | null = null;
+
+LocalNotifications.registerActionTypes({
+  types: [
+    {
+      id: "REMINDER_ACTIONS",
+      actions: [
+        { id: "SNOOZE", title: "Snooze" },
+        { id: "STOP", title: "Stop" },
+      ],
+    },
+  ],
+});
+
+LocalNotifications.addListener("localNotificationReceived", (notification) => {
+  // Start looping sound when notification arrives
+  if (notification.sound) {
+    if (alarmAudio) {
+      alarmAudio.pause();
+      alarmAudio = null;
+    }
+    alarmAudio = new Audio(notification.sound);
+    alarmAudio.loop = true;
+    alarmAudio.play();
+  }
+});
 
 function App() {
   const [reminders, setReminders] = usePersistentState<Reminder[]>(
@@ -18,6 +45,14 @@ function App() {
   const [selectedReminderIndex, setSelectedReminderIndex] = useState<
     number | null
   >(null);
+
+  const stopAlarmSound = () => {
+    if (alarmAudio) {
+      alarmAudio.pause();
+      alarmAudio.currentTime = 0;
+      alarmAudio = null;
+    }
+  };
 
   const handleSaveReminder = (newReminder: Reminder) => {
     if (selectedReminderIndex !== null) {
@@ -49,6 +84,7 @@ function App() {
       setReminders((prev) =>
         prev.map((r, i) => (i === index ? snoozedReminder : r)),
       );
+      stopAlarmSound();
     }
   };
 
@@ -57,7 +93,7 @@ function App() {
     if (reminder) {
       if (reminder.type === "consecutive" && reminder.startTime) {
         reminder.startTime = new Date(
-          Date.now() + (reminder.consecutiveTime ?? 0) * 1000,
+          Date.now() + (reminder.consecutiveTime ?? 0) * 60 * 1000,
         )
           .toTimeString()
           .slice(0, 5);
@@ -69,12 +105,11 @@ function App() {
       setReminders((prev) =>
         prev.map((r, i) => (i === index ? stoppedReminder : r)),
       );
+      stopAlarmSound();
     }
   };
 
   useEffect(() => {
-    let alarmAudio: HTMLAudioElement | null = null;
-
     worker.onmessage = (event) => {
       const { type, payload } = event.data;
       if (type === "TRIGGER_ALARM") {
@@ -88,13 +123,6 @@ function App() {
             requireInteraction: true,
           });
 
-          // notification.onclick = () => {
-          //   if (payload.alarmFile) {
-          //     const audio = new Audio(payload.alarmFile);
-          //     audio.play();
-          //   }
-          // };
-          // Start repeating sound
           notification.onclick = () => {
             if (payload.alarmFile) {
               if (alarmAudio) {
