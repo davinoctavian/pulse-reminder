@@ -9,33 +9,40 @@ import type { Reminder } from "./interface/Reminder";
 import scheduleReminders from "./hooks/scheduleReminder";
 import AlarmWorker from "./alarmWorker?worker";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { Capacitor } from "@capacitor/core";
+
 const worker = new AlarmWorker();
 let alarmAudio: HTMLAudioElement | null = null;
 
-LocalNotifications.registerActionTypes({
-  types: [
-    {
-      id: "REMINDER_ACTIONS",
-      actions: [
-        { id: "SNOOZE", title: "Snooze" },
-        { id: "STOP", title: "Stop" },
-      ],
-    },
-  ],
-});
+if (Capacitor.getPlatform() !== "web") {
+  LocalNotifications.registerActionTypes({
+    types: [
+      {
+        id: "REMINDER_ACTIONS",
+        actions: [
+          { id: "SNOOZE", title: "Snooze" },
+          { id: "STOP", title: "Stop" },
+        ],
+      },
+    ],
+  });
 
-LocalNotifications.addListener("localNotificationReceived", (notification) => {
-  // Start looping sound when notification arrives
-  if (notification.sound) {
-    if (alarmAudio) {
-      alarmAudio.pause();
-      alarmAudio = null;
-    }
-    alarmAudio = new Audio(notification.sound);
-    alarmAudio.loop = true;
-    alarmAudio.play();
-  }
-});
+  LocalNotifications.addListener(
+    "localNotificationReceived",
+    (notification) => {
+      // Start looping sound when notification arrives
+      if (notification.sound) {
+        if (alarmAudio) {
+          alarmAudio.pause();
+          alarmAudio = null;
+        }
+        alarmAudio = new Audio(notification.sound);
+        alarmAudio.loop = true;
+        alarmAudio.play();
+      }
+    },
+  );
+}
 
 function App() {
   const [reminders, setReminders] = usePersistentState<Reminder[]>(
@@ -81,9 +88,11 @@ function App() {
           .slice(0, 5),
         isRinging: false,
       };
-      setReminders((prev) =>
-        prev.map((r, i) => (i === index ? snoozedReminder : r)),
-      );
+      setReminders((prev) => {
+        const updated = prev.map((r, i) => (i === index ? snoozedReminder : r));
+        worker.postMessage({ type: "SET_REMINDERS", payload: updated });
+        return updated;
+      });
       stopAlarmSound();
     }
   };
@@ -97,6 +106,9 @@ function App() {
         )
           .toTimeString()
           .slice(0, 5);
+      } else {
+        const nextAlarm = new Date().setFullYear(new Date().getFullYear() + 1);
+        reminder.startDate = new Date(nextAlarm).toISOString().split("T")[0];
       }
       const stoppedReminder = {
         ...reminder,

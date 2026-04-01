@@ -19,7 +19,8 @@ setInterval(() => {
           `${reminder.startDate}T${reminder.startTime}`,
         );
         if (reminderDateTime.getTime() - now.getTime() < 30000) {
-          if (!reminder.isRinging) {
+          if (reminder.isRinging === false) {
+            reminder.startDate = new Date().toISOString().split("T")[0];
             reminder.isRinging = true;
             self.postMessage({ type: "TRIGGER_ALARM", payload: reminder });
           }
@@ -31,7 +32,7 @@ setInterval(() => {
         const reminderDateTime = new Date();
         reminderDateTime.setHours(hours, minutes, 0, 0);
         if (reminderDateTime.getTime() - now.getTime() < 30000) {
-          if (!reminder.isRinging) {
+          if (reminder.isRinging === false) {
             reminder.isRinging = true;
             self.postMessage({ type: "TRIGGER_ALARM", payload: reminder });
           }

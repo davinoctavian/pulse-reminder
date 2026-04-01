@@ -4,6 +4,9 @@ import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
 import useFileToBase64 from "../hooks/useFileToBase64";
 import defaultAlarm from "../assets/sound/default-alarm.mp3";
+import { Capacitor } from "@capacitor/core";
+
+const platform = Capacitor.getPlatform();
 
 interface ReminderModalProps {
   reminder?: Reminder;
@@ -151,7 +154,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       stopTimerButton,
       alarmFile,
       alarmFileName: alarmFileName || undefined,
-      nativeSound: alarmFile !== defaultAlarm ? alarmFile : "defaultalarm.mp3",
       isRinging: false,
     };
     onSave(newReminder);
@@ -183,24 +185,26 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
           setReminderType={setReminderType}
         />
         <div className="file-field input-field col s12">
-          <div className="btn">
-            <span>Alarm Sound</span>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={async (e) => {
-                if (e.target.files && e.target.files[0]) {
-                  const file = e.target.files[0];
-                  const base64 = await useFileToBase64(file);
-                  setAlarmFile(base64);
-                  setAlarmFileName(file.name);
-                } else {
-                  setAlarmFile(defaultAlarm);
-                  setAlarmFileName("Default Alarm");
-                }
-              }}
-            />
-          </div>
+          {platform === "web" && (
+            <div className="btn">
+              <span>Alarm Sound</span>
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={async (e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    const base64 = await useFileToBase64(file);
+                    setAlarmFile(base64);
+                    setAlarmFileName(file.name);
+                  } else {
+                    setAlarmFile(defaultAlarm);
+                    setAlarmFileName("Default Alarm");
+                  }
+                }}
+              />
+            </div>
+          )}
           <div className="file-path-wrapper">
             <input
               name="alarm_file"

@@ -31,7 +31,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
         title: "Reminder Alert",
         body: `Reminder: ${reminder.name}`,
         schedule: { at: reminderDateTime },
-        sound: reminder.nativeSound || "defaultalarm.mp3",
+        sound: "defaultalarm.wav",
         actionTypeId: "REMINDER_ACTIONS",
       };
     })
@@ -62,7 +62,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
               title: "Reminder Alert",
               body: `Reminder: ${reminder.name}`,
               schedule: { at: reminderDateTime },
-              sound: reminder.nativeSound || "defaultalarm.mp3",
+              sound: "defaultalarm.wav",
             },
           ],
         });
@@ -87,7 +87,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
                 title: "Reminder Alert",
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: nextDateTime },
-                sound: reminder.nativeSound || "defaultalarm.mp3",
+                sound: "defaultalarm.wav",
               },
             ],
           });
@@ -108,6 +108,17 @@ export default async function scheduleReminders(reminders: Reminder[]) {
             0,
             0,
           );
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                id: Date.now(), // new unique ID
+                title: "Reminder Alert",
+                body: `Reminder: ${reminder.name}`,
+                schedule: { at: reminderDateTime },
+                sound: "defaultalarm.wav",
+              },
+            ],
+          });
         }
       }
     },
