@@ -26,22 +26,6 @@ if (Capacitor.getPlatform() !== "web") {
       },
     ],
   });
-
-  LocalNotifications.addListener(
-    "localNotificationReceived",
-    (notification) => {
-      // Start looping sound when notification arrives
-      if (notification.sound) {
-        if (alarmAudio) {
-          alarmAudio.pause();
-          alarmAudio = null;
-        }
-        alarmAudio = new Audio(notification.sound);
-        alarmAudio.loop = true;
-        alarmAudio.play();
-      }
-    },
-  );
 }
 
 function App() {
@@ -166,7 +150,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    scheduleReminders(reminders);
+    scheduleReminders(reminders, setReminders);
     worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
   }, [reminders]);
 

@@ -1,7 +1,10 @@
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { Reminder } from "../interface/Reminder";
 
-export default async function scheduleReminders(reminders: Reminder[]) {
+export default async function scheduleReminders(
+  reminders: Reminder[],
+  setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
+) {
   // Ask permission once
   await LocalNotifications.requestPermissions();
 
@@ -32,6 +35,7 @@ export default async function scheduleReminders(reminders: Reminder[]) {
         body: `Reminder: ${reminder.name}`,
         schedule: { at: reminderDateTime },
         sound: "defaultalarm.wav",
+        channelId: "ReminderChannel",
         actionTypeId: "REMINDER_ACTIONS",
       };
     })
@@ -54,6 +58,12 @@ export default async function scheduleReminders(reminders: Reminder[]) {
 
       if (event.actionId === "SNOOZE") {
         const reminderDateTime = new Date(Date.now() + 5 * 60 * 1000);
+        if (reminder.startDate) {
+          reminder.startDate = reminderDateTime.toISOString().split("T")[0];
+        }
+        reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
+        reminder.isRinging = false;
+
         // Reschedule notification
         await LocalNotifications.schedule({
           notifications: [
@@ -63,6 +73,8 @@ export default async function scheduleReminders(reminders: Reminder[]) {
               body: `Reminder: ${reminder.name}`,
               schedule: { at: reminderDateTime },
               sound: "defaultalarm.wav",
+              channelId: "ReminderChannel",
+              actionTypeId: "REMINDER_ACTIONS",
             },
           ],
         });
@@ -78,6 +90,8 @@ export default async function scheduleReminders(reminders: Reminder[]) {
             reminderDateTime.getTime() +
               (reminder.consecutiveTime ?? 0) * 60 * 1000,
           );
+          reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
+          reminder.isRinging = false;
 
           // Reschedule notification
           await LocalNotifications.schedule({
@@ -88,11 +102,16 @@ export default async function scheduleReminders(reminders: Reminder[]) {
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: nextDateTime },
                 sound: "defaultalarm.wav",
+                channelId: "ReminderChannel",
+                actionTypeId: "REMINDER_ACTIONS",
               },
             ],
           });
         } else {
-          const reminderDateTime = new Date();
+          const nextAlarm = new Date().setFullYear(
+            new Date().getFullYear() + 1,
+          );
+          const reminderDateTime = new Date(nextAlarm);
           reminderDateTime.setDate(
             reminder.startDate
               ? new Date(reminder.startDate).getDate()
@@ -108,6 +127,10 @@ export default async function scheduleReminders(reminders: Reminder[]) {
             0,
             0,
           );
+          reminder.startDate = reminderDateTime.toISOString().split("T")[0];
+          reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
+          reminder.isRinging = false;
+
           await LocalNotifications.schedule({
             notifications: [
               {
@@ -116,11 +139,16 @@ export default async function scheduleReminders(reminders: Reminder[]) {
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: reminderDateTime },
                 sound: "defaultalarm.wav",
+                channelId: "ReminderChannel",
+                actionTypeId: "REMINDER_ACTIONS",
               },
             ],
           });
         }
       }
+      setReminders((prev) =>
+        prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
+      );
     },
   );
 }
