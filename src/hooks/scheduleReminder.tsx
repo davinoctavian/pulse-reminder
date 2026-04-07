@@ -1,6 +1,13 @@
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { Reminder } from "../interface/Reminder";
 
+const channelMap: Record<string, string> = {
+  "defaultalarm.wav": "ReminderDefault",
+  "mealtime.wav": "ReminderMeal",
+  "changediapers.wav": "ReminderDiapers",
+  "takemedicine.wav": "ReminderMedicine",
+};
+
 export default async function scheduleReminders(
   reminders: Reminder[],
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
@@ -34,8 +41,8 @@ export default async function scheduleReminders(
         title: "Reminder Alert",
         body: `Reminder: ${reminder.name}`,
         schedule: { at: reminderDateTime },
-        sound: "defaultalarm.wav",
-        channelId: "ReminderChannel",
+        sound: reminder.alarmFileName || "defaultalarm.wav",
+        channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
         actionTypeId: "REMINDER_ACTIONS",
       };
     })
@@ -72,8 +79,9 @@ export default async function scheduleReminders(
               title: "Reminder Alert",
               body: `Reminder: ${reminder.name}`,
               schedule: { at: reminderDateTime },
-              sound: "defaultalarm.wav",
-              channelId: "ReminderChannel",
+              sound: reminder.alarmFileName || "defaultalarm.wav",
+              channelId:
+                channelMap[reminder.alarmFileName || "defaultalarm.wav"],
               actionTypeId: "REMINDER_ACTIONS",
             },
           ],
@@ -101,8 +109,9 @@ export default async function scheduleReminders(
                 title: "Reminder Alert",
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: nextDateTime },
-                sound: "defaultalarm.wav",
-                channelId: "ReminderChannel",
+                sound: reminder.alarmFileName || "defaultalarm.wav",
+                channelId:
+                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
                 actionTypeId: "REMINDER_ACTIONS",
               },
             ],
@@ -138,8 +147,9 @@ export default async function scheduleReminders(
                 title: "Reminder Alert",
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: reminderDateTime },
-                sound: "defaultalarm.wav",
-                channelId: "ReminderChannel",
+                sound: reminder.alarmFileName || "defaultalarm.wav",
+                channelId:
+                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
                 actionTypeId: "REMINDER_ACTIONS",
               },
             ],

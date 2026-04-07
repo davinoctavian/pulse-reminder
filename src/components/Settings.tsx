@@ -28,7 +28,9 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
   );
   const [alarmFile, setAlarmFile] = useState<string>(defaultAlarm);
   const [alarmFileName, setAlarmFileName] = useState<string>(
-    reminder?.alarmFileName || "Default Alarm",
+    reminder?.alarmFileName || platform === "web"
+      ? "Default Alarm"
+      : "defaultalarm.wav",
   );
   const justOpened = useRef(false);
 
@@ -43,7 +45,11 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setStopButton(reminder.stopButton || false);
       setStopTimerButton(reminder.stopTimerButton || false);
       setAlarmFile(reminder.alarmFile || defaultAlarm);
-      setAlarmFileName(reminder.alarmFileName || "Default Alarm");
+      if (platform !== "web") {
+        setAlarmFileName(reminder.alarmFileName || "defaultalarm.wav");
+      } else {
+        setAlarmFileName(reminder.alarmFileName || "Default Alarm");
+      }
     } else {
       setReminderName("");
       setReminderType("");
@@ -54,7 +60,11 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setStopButton(false);
       setStopTimerButton(false);
       setAlarmFile(defaultAlarm);
-      setAlarmFileName("Default Alarm");
+      if (platform !== "web") {
+        setAlarmFileName("defaultalarm.wav");
+      } else {
+        setAlarmFileName("Default Alarm");
+      }
     }
     justOpened.current = true;
   }, [reminder]);
@@ -186,35 +196,51 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
         />
         <div className="file-field input-field col s12">
           {platform === "web" && (
-            <div className="btn">
-              <span>Alarm Sound</span>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={async (e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    const file = e.target.files[0];
-                    const base64 = await useFileToBase64(file);
-                    setAlarmFile(base64);
-                    setAlarmFileName(file.name);
-                  } else {
-                    setAlarmFile(defaultAlarm);
-                    setAlarmFileName("Default Alarm");
-                  }
-                }}
-              />
+            <>
+              <div className="btn">
+                <span>Alarm Sound</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={async (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      const file = e.target.files[0];
+                      const base64 = await useFileToBase64(file);
+                      setAlarmFile(base64);
+                      setAlarmFileName(file.name);
+                    } else {
+                      setAlarmFile(defaultAlarm);
+                      setAlarmFileName("Default Alarm");
+                    }
+                  }}
+                />
+              </div>
+              <div className="file-path-wrapper">
+                <input
+                  name="alarm_file"
+                  className="file-path validate"
+                  type="text"
+                  readOnly
+                  value={alarmFileName || ""}
+                  placeholder="No file chosen"
+                />
+              </div>
+            </>
+          )}
+          {platform !== "web" && (
+            <div className="input-field col s12">
+              <select
+                value={alarmFileName}
+                onChange={(e) => setAlarmFileName(e.target.value)}
+              >
+                <option value="defaultalarm.wav">Default</option>
+                <option value="mealtime.wav">Meal Time</option>
+                <option value="changediapers.wav">Diapers Change</option>
+                <option value="takemedicine.wav">Medicine Time</option>
+              </select>
+              <label>Alarm Sound</label>
             </div>
           )}
-          <div className="file-path-wrapper">
-            <input
-              name="alarm_file"
-              className="file-path validate"
-              type="text"
-              readOnly
-              value={alarmFileName || ""}
-              placeholder="No file chosen"
-            />
-          </div>
         </div>
 
         {reminderType === "consecutive" && (
