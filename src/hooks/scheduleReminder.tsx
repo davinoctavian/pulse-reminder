@@ -68,6 +68,7 @@ export default async function scheduleReminders(
         if (reminder.startDate) {
           reminder.startDate = reminderDateTime.toISOString().split("T")[0];
         }
+        reminder.startDate = reminderDateTime.toISOString().split("T")[0];
         reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
         reminder.isRinging = false;
 
@@ -98,6 +99,7 @@ export default async function scheduleReminders(
             reminderDateTime.getTime() +
               (reminder.consecutiveTime ?? 0) * 60 * 1000,
           );
+          reminder.startDate = nextDateTime.toISOString().split("T")[0];
           reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
           reminder.isRinging = false;
 
@@ -156,6 +158,47 @@ export default async function scheduleReminders(
           });
         }
       }
+      setReminders((prev) =>
+        prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
+      );
+    },
+  );
+
+  LocalNotifications.addListener(
+    "localNotificationReceived",
+    async (notification) => {
+      const reminder = reminders.find(
+        (r) => `Reminder: ${r.name}` === notification.body,
+      );
+      if (!reminder) return;
+
+      reminder.isRinging = true;
+
+      if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+        const nextDateTime = new Date(
+          Date.now() + reminder.consecutiveTime * 60 * 1000,
+        );
+
+        reminder.startDate = nextDateTime.toISOString().split("T")[0];
+        reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
+        reminder.isRinging = false;
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: Date.now(),
+              title: "Reminder Alert",
+              body: `Reminder: ${reminder.name}`,
+              schedule: { at: nextDateTime },
+              sound: reminder.alarmFileName || "defaultalarm.wav",
+              channelId:
+                channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+              actionTypeId: "REMINDER_ACTIONS",
+            },
+          ],
+        });
+      }
+
       setReminders((prev) =>
         prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
       );

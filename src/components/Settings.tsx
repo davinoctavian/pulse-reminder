@@ -22,10 +22,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
   const [consecutiveTime, setConsecutiveTime] = useState(
     reminder?.consecutiveTime || 0,
   );
-  const [stopButton, setStopButton] = useState(reminder?.stopButton || false);
-  const [stopTimerButton, setStopTimerButton] = useState(
-    reminder?.stopTimerButton || false,
-  );
   const [alarmFile, setAlarmFile] = useState<string>(defaultAlarm);
   const [alarmFileName, setAlarmFileName] = useState<string>(
     reminder?.alarmFileName || platform === "web"
@@ -42,8 +38,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setDateReminder(reminder.startDate || "");
       setTimeReminder(reminder.startTime || "");
       setConsecutiveTime(reminder.consecutiveTime || 0);
-      setStopButton(reminder.stopButton || false);
-      setStopTimerButton(reminder.stopTimerButton || false);
       setAlarmFile(reminder.alarmFile || defaultAlarm);
       if (platform !== "web") {
         setAlarmFileName(reminder.alarmFileName || "defaultalarm.wav");
@@ -57,8 +51,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setDateReminder("");
       setTimeReminder("");
       setConsecutiveTime(0);
-      setStopButton(false);
-      setStopTimerButton(false);
       setAlarmFile(defaultAlarm);
       if (platform !== "web") {
         setAlarmFileName("defaultalarm.wav");
@@ -160,8 +152,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
         (document.getElementById("consecutive_time") as HTMLInputElement)
           ?.value || "0",
       ),
-      stopButton,
-      stopTimerButton,
       alarmFile,
       alarmFileName: alarmFileName || undefined,
       isRinging: false,
@@ -250,10 +240,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
             startDate={dateReminder}
             startTime={timeReminder}
             setConsecutiveBase={setConsecutiveBase}
-            stopButton={stopButton}
-            setStopButton={setStopButton}
-            stopTimerButton={stopTimerButton}
-            setStopTimerButton={setStopTimerButton}
             setConsecutiveTime={setConsecutiveTime}
             setDateReminder={setDateReminder}
             setTimeReminder={setTimeReminder}

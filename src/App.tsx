@@ -65,6 +65,7 @@ function App() {
     if (reminder) {
       const snoozedReminder = {
         ...reminder,
+        startDate: new Date().toISOString().split("T")[0],
         startTime: new Date(
           Date.now() + 5 * 60 * 1000, // Snooze for 5 minutes
         )
@@ -85,6 +86,7 @@ function App() {
     const reminder = reminders[index];
     if (reminder) {
       if (reminder.type === "consecutive" && reminder.startTime) {
+        reminder.startDate = new Date().toISOString().split("T")[0];
         reminder.startTime = new Date(
           Date.now() + (reminder.consecutiveTime ?? 0) * 60 * 1000,
         )

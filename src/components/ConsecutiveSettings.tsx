@@ -4,10 +4,6 @@ interface Props {
   startDate: string;
   startTime: string;
   setConsecutiveBase: (val: string) => void;
-  stopButton: boolean;
-  setStopButton: (val: boolean) => void;
-  stopTimerButton: boolean;
-  setStopTimerButton: (val: boolean) => void;
   setConsecutiveTime: (val: number) => void;
   setDateReminder: (val: string) => void;
   setTimeReminder: (val: string) => void;
@@ -19,10 +15,6 @@ function ConsecutiveSettings({
   startDate,
   startTime,
   setConsecutiveBase,
-  stopButton,
-  setStopButton,
-  stopTimerButton,
-  setStopTimerButton,
   setConsecutiveTime,
   setDateReminder,
   setTimeReminder,
@@ -66,30 +58,6 @@ function ConsecutiveSettings({
             />
             <label htmlFor="consecutive_time">Every (minutes)</label>
           </div>
-          <div className="col s12 left-align">
-            <label>
-              <input
-                type="checkbox"
-                className="filled-in"
-                checked={stopButton}
-                onChange={(e) => setStopButton(e.target.checked)}
-              />
-              <span>Adding Stop Button</span>
-            </label>
-          </div>
-          {stopButton && (
-            <div className="col s12 left-align">
-              <label>
-                <input
-                  type="checkbox"
-                  className="filled-in"
-                  checked={stopTimerButton}
-                  onChange={(e) => setStopTimerButton(e.target.checked)}
-                />
-                <span>Apply Timer After Stop</span>
-              </label>
-            </div>
-          )}
         </>
       )}
       {consecutiveBase === "date" && (
