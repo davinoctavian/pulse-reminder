@@ -3,7 +3,7 @@ import type { Reminder } from "../interface/Reminder";
 import ConsecutiveSettings from "./ConsecutiveSettings";
 import ReminderTypeSelect from "./ReminderTypeSelect";
 import useFileToBase64 from "../hooks/useFileToBase64";
-import defaultAlarm from "../assets/sound/default-alarm.mp3";
+import defaultAlarm from "../assets/sound/defaultalarm.wav";
 import { Capacitor } from "@capacitor/core";
 
 const platform = Capacitor.getPlatform();

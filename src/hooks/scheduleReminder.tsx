@@ -87,8 +87,7 @@ export default async function scheduleReminders(
             },
           ],
         });
-      }
-      if (event.actionId === "STOP") {
+      } else if (event.actionId === "STOP") {
         if (reminder.type === "consecutive" && reminder.startTime) {
           // Parse current time
           const [hours, minutes] = reminder.startTime.split(":").map(Number);
@@ -157,6 +156,8 @@ export default async function scheduleReminders(
             ],
           });
         }
+      } else {
+        reminder.isRinging = true;
       }
       setReminders((prev) =>
         prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
@@ -173,30 +174,55 @@ export default async function scheduleReminders(
       if (!reminder) return;
 
       reminder.isRinging = true;
+      const alarmAudio = new Audio(`/sounds/${notification.sound}`);
+      alarmAudio.loop = true;
+      alarmAudio.play();
 
-      if (reminder.type === "consecutive" && reminder.consecutiveTime) {
-        const nextDateTime = new Date(
-          Date.now() + reminder.consecutiveTime * 60 * 1000,
-        );
+      if (reminder.type === "consecutive") {
+        if (reminder.consecutiveTime) {
+          const nextDateTime = new Date(
+            Date.now() + reminder.consecutiveTime * 60 * 1000,
+          );
 
-        reminder.startDate = nextDateTime.toISOString().split("T")[0];
-        reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
-        reminder.isRinging = false;
+          reminder.startDate = nextDateTime.toISOString().split("T")[0];
+          reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
 
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              id: Date.now(),
-              title: "Reminder Alert",
-              body: `Reminder: ${reminder.name}`,
-              schedule: { at: nextDateTime },
-              sound: reminder.alarmFileName || "defaultalarm.wav",
-              channelId:
-                channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-              actionTypeId: "REMINDER_ACTIONS",
-            },
-          ],
-        });
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                id: Date.now(),
+                title: "Reminder Alert",
+                body: `Reminder: ${reminder.name}`,
+                schedule: { at: nextDateTime },
+                sound: reminder.alarmFileName || "defaultalarm.wav",
+                channelId:
+                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+                actionTypeId: "REMINDER_ACTIONS",
+              },
+            ],
+          });
+        } else {
+          const nextDateTime = new Date(
+            Date.now() + 24 * 60 * 60 * 1000, //next day
+          );
+
+          reminder.startDate = nextDateTime.toISOString().split("T")[0];
+          reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
+          await LocalNotifications.schedule({
+            notifications: [
+              {
+                id: Date.now(),
+                title: "Reminder Alert",
+                body: `Reminder: ${reminder.name}`,
+                schedule: { at: nextDateTime },
+                sound: reminder.alarmFileName || "defaultalarm.wav",
+                channelId:
+                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+                actionTypeId: "REMINDER_ACTIONS",
+              },
+            ],
+          });
+        }
       }
 
       setReminders((prev) =>

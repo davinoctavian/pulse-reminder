@@ -12,9 +12,10 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
 
 const worker = new AlarmWorker();
+const platform = Capacitor.getPlatform();
 let alarmAudio: HTMLAudioElement | null = null;
 
-if (Capacitor.getPlatform() !== "web") {
+if (platform !== "web") {
   LocalNotifications.registerActionTypes({
     types: [
       {
@@ -108,33 +109,37 @@ function App() {
   };
 
   useEffect(() => {
-    worker.onmessage = (event) => {
-      const { type, payload } = event.data;
-      if (type === "TRIGGER_ALARM") {
-        setReminders((prev) =>
-          prev.map((r) => (r.name === payload.name ? { ...r, ...payload } : r)),
-        );
+    if (platform === "web") {
+      worker.onmessage = (event) => {
+        const { type, payload } = event.data;
+        if (type === "TRIGGER_ALARM") {
+          setReminders((prev) =>
+            prev.map((r) =>
+              r.name === payload.name ? { ...r, ...payload } : r,
+            ),
+          );
 
-        if (Notification.permission === "granted") {
-          const notification = new Notification("Reminder Alert", {
-            body: `Reminder: ${payload.name}`,
-            requireInteraction: true,
-          });
+          if (Notification.permission === "granted") {
+            const notification = new Notification("Reminder Alert", {
+              body: `Reminder: ${payload.name}`,
+              requireInteraction: true,
+            });
 
-          notification.onclick = () => {
-            if (payload.alarmFile) {
-              if (alarmAudio) {
-                alarmAudio.pause();
-                alarmAudio = null;
+            notification.onclick = () => {
+              if (payload.alarmFile) {
+                if (alarmAudio) {
+                  alarmAudio.pause();
+                  alarmAudio = null;
+                }
+                alarmAudio = new Audio(payload.alarmFile);
+                alarmAudio.loop = true;
+                alarmAudio.play();
               }
-              alarmAudio = new Audio(payload.alarmFile);
-              alarmAudio.loop = true;
-              alarmAudio.play();
-            }
-          };
+            };
+          }
         }
-      }
-    };
+      };
+    }
 
     const elems = document.querySelectorAll(".tooltipped");
     const modalElems = document.querySelectorAll(".modal");
@@ -152,8 +157,11 @@ function App() {
   }, []);
 
   useEffect(() => {
-    scheduleReminders(reminders, setReminders);
-    worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
+    if (platform === "web") {
+      worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
+    } else {
+      scheduleReminders(reminders, setReminders);
+    }
   }, [reminders]);
 
   return (
