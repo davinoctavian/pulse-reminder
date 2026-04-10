@@ -39,6 +39,7 @@ public class MainActivity extends BridgeActivity {
         channel.setDescription("Reminder notifications with sound");
         channel.setSound(soundUri, audioAttributes);
         channel.enableVibration(true);
+        channel.setVibrationPattern(new long[]{0, 500, 500, 500});
 
         manager.createNotificationChannel(channel);
     }

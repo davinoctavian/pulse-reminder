@@ -34,17 +34,18 @@ export default async function scheduleReminders(
         reminderDateTime.setHours(hours, minutes, 0, 0);
       }
 
-      if (!reminderDateTime) return null;
-
-      return {
-        id: index + 1,
-        title: "Reminder Alert",
-        body: `Reminder: ${reminder.name}`,
-        schedule: { at: reminderDateTime },
-        sound: reminder.alarmFileName || "defaultalarm.wav",
-        channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-        actionTypeId: "REMINDER_ACTIONS",
-      };
+      if (reminderDateTime && reminderDateTime.getTime() > Date.now()) {
+        return {
+          id: index + 1,
+          title: "Reminder Alert",
+          body: `Reminder: ${reminder.name}`,
+          schedule: { at: reminderDateTime },
+          sound: reminder.alarmFileName || "defaultalarm.wav",
+          channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+          actionTypeId: "REMINDER_ACTIONS",
+        };
+      }
+      return null;
     })
     .filter(Boolean) as any[];
 
@@ -64,11 +65,10 @@ export default async function scheduleReminders(
       if (!reminder) return;
 
       if (event.actionId === "SNOOZE") {
-        const reminderDateTime = new Date(Date.now() + 5 * 60 * 1000);
+        const reminderDateTime = new Date(new Date().getTime() + 5 * 60 * 1000);
         if (reminder.startDate) {
           reminder.startDate = reminderDateTime.toISOString().split("T")[0];
         }
-        reminder.startDate = reminderDateTime.toISOString().split("T")[0];
         reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
         reminder.isRinging = false;
 
@@ -89,10 +89,7 @@ export default async function scheduleReminders(
         });
       } else if (event.actionId === "STOP") {
         if (reminder.type === "consecutive" && reminder.startTime) {
-          // Parse current time
-          const [hours, minutes] = reminder.startTime.split(":").map(Number);
           const reminderDateTime = new Date();
-          reminderDateTime.setHours(hours, minutes, 0, 0);
 
           const nextDateTime = new Date(
             reminderDateTime.getTime() +
@@ -159,72 +156,6 @@ export default async function scheduleReminders(
       } else {
         reminder.isRinging = true;
       }
-      setReminders((prev) =>
-        prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
-      );
-    },
-  );
-
-  LocalNotifications.addListener(
-    "localNotificationReceived",
-    async (notification) => {
-      const reminder = reminders.find(
-        (r) => `Reminder: ${r.name}` === notification.body,
-      );
-      if (!reminder) return;
-
-      reminder.isRinging = true;
-      const alarmAudio = new Audio(`/sounds/${notification.sound}`);
-      alarmAudio.loop = true;
-      alarmAudio.play();
-
-      if (reminder.type === "consecutive") {
-        if (reminder.consecutiveTime) {
-          const nextDateTime = new Date(
-            Date.now() + reminder.consecutiveTime * 60 * 1000,
-          );
-
-          reminder.startDate = nextDateTime.toISOString().split("T")[0];
-          reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
-
-          await LocalNotifications.schedule({
-            notifications: [
-              {
-                id: Date.now(),
-                title: "Reminder Alert",
-                body: `Reminder: ${reminder.name}`,
-                schedule: { at: nextDateTime },
-                sound: reminder.alarmFileName || "defaultalarm.wav",
-                channelId:
-                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-                actionTypeId: "REMINDER_ACTIONS",
-              },
-            ],
-          });
-        } else {
-          const nextDateTime = new Date(
-            Date.now() + 24 * 60 * 60 * 1000, //next day
-          );
-
-          reminder.startDate = nextDateTime.toISOString().split("T")[0];
-          reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
-          await LocalNotifications.schedule({
-            notifications: [
-              {
-                id: Date.now(),
-                title: "Reminder Alert",
-                body: `Reminder: ${reminder.name}`,
-                schedule: { at: nextDateTime },
-                sound: reminder.alarmFileName || "defaultalarm.wav",
-                channelId:
-                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-                actionTypeId: "REMINDER_ACTIONS",
-              },
-            ],
-          });
-        }
-      }
-
       setReminders((prev) =>
         prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
       );

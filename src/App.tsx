@@ -14,6 +14,12 @@ import { Capacitor } from "@capacitor/core";
 const worker = new AlarmWorker();
 const platform = Capacitor.getPlatform();
 let alarmAudio: HTMLAudioElement | null = null;
+const channelMap: Record<string, string> = {
+  "defaultalarm.wav": "ReminderDefault",
+  "mealtime.wav": "ReminderMeal",
+  "changediapers.wav": "ReminderDiapers",
+  "takemedicine.wav": "ReminderMedicine",
+};
 
 if (platform !== "web") {
   LocalNotifications.registerActionTypes({
@@ -139,6 +145,78 @@ function App() {
           }
         }
       };
+    } else {
+      LocalNotifications.addListener(
+        "localNotificationReceived",
+        async (notification) => {
+          const reminder = reminders.find(
+            (r) => `Reminder: ${r.name}` === notification.body,
+          );
+
+          if (!reminder) return;
+
+          reminder.isRinging = true;
+          const alarmAudio = new Audio(
+            `src/assets/sound/${notification.sound}`,
+          );
+          alarmAudio.loop = true;
+          alarmAudio.play();
+          if (navigator.vibrate) {
+            navigator.vibrate([500, 500, 500]);
+          }
+
+          if (reminder.type === "consecutive") {
+            if (reminder.consecutiveTime) {
+              const nextDateTime = new Date(
+                Date.now() + reminder.consecutiveTime * 60 * 1000,
+              );
+
+              reminder.startDate = nextDateTime.toISOString().split("T")[0];
+              reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
+
+              await LocalNotifications.schedule({
+                notifications: [
+                  {
+                    id: Date.now(),
+                    title: "Reminder Alert",
+                    body: `Reminder: ${reminder.name}`,
+                    schedule: { at: nextDateTime },
+                    sound: reminder.alarmFileName || "defaultalarm.wav",
+                    channelId:
+                      channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+                    actionTypeId: "REMINDER_ACTIONS",
+                  },
+                ],
+              });
+            } else {
+              const nextDateTime = new Date(
+                Date.now() + 24 * 60 * 60 * 1000, //next day
+              );
+
+              reminder.startDate = nextDateTime.toISOString().split("T")[0];
+              reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
+              await LocalNotifications.schedule({
+                notifications: [
+                  {
+                    id: Date.now(),
+                    title: "Reminder Alert",
+                    body: `Reminder: ${reminder.name}`,
+                    schedule: { at: nextDateTime },
+                    sound: reminder.alarmFileName || "defaultalarm.wav",
+                    channelId:
+                      channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+                    actionTypeId: "REMINDER_ACTIONS",
+                  },
+                ],
+              });
+            }
+          }
+
+          setReminders((prev) =>
+            prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
+          );
+        },
+      );
     }
 
     const elems = document.querySelectorAll(".tooltipped");
