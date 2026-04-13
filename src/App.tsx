@@ -82,10 +82,14 @@ function App() {
       };
       setReminders((prev) => {
         const updated = prev.map((r, i) => (i === index ? snoozedReminder : r));
-        worker.postMessage({ type: "SET_REMINDERS", payload: updated });
+        if (platform === "web") {
+          worker.postMessage({ type: "SET_REMINDERS", payload: updated });
+        }
         return updated;
       });
-      stopAlarmSound();
+      if (platform === "web") {
+        stopAlarmSound();
+      }
     }
   };
 
@@ -110,7 +114,9 @@ function App() {
       setReminders((prev) =>
         prev.map((r, i) => (i === index ? stoppedReminder : r)),
       );
-      stopAlarmSound();
+      if (platform === "web") {
+        stopAlarmSound();
+      }
     }
   };
 
@@ -156,14 +162,6 @@ function App() {
           if (!reminder) return;
 
           reminder.isRinging = true;
-          const alarmAudio = new Audio(
-            `src/assets/sound/${notification.sound}`,
-          );
-          alarmAudio.loop = true;
-          alarmAudio.play();
-          if (navigator.vibrate) {
-            navigator.vibrate([500, 500, 500]);
-          }
 
           if (reminder.type === "consecutive") {
             if (reminder.consecutiveTime) {
@@ -174,10 +172,13 @@ function App() {
               reminder.startDate = nextDateTime.toISOString().split("T")[0];
               reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
 
+              const array = new Uint32Array(1);
+              window.crypto.getRandomValues(array);
+              const secure6Digit = (array[0] % 900000) + 100000;
               await LocalNotifications.schedule({
                 notifications: [
                   {
-                    id: Date.now(),
+                    id: secure6Digit,
                     title: "Reminder Alert",
                     body: `Reminder: ${reminder.name}`,
                     schedule: { at: nextDateTime },
@@ -195,10 +196,13 @@ function App() {
 
               reminder.startDate = nextDateTime.toISOString().split("T")[0];
               reminder.startTime = nextDateTime.toTimeString().slice(0, 5);
+              const array = new Uint32Array(1);
+              window.crypto.getRandomValues(array);
+              const secure6Digit = (array[0] % 900000) + 100000;
               await LocalNotifications.schedule({
                 notifications: [
                   {
-                    id: Date.now(),
+                    id: secure6Digit,
                     title: "Reminder Alert",
                     body: `Reminder: ${reminder.name}`,
                     schedule: { at: nextDateTime },

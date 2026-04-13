@@ -17,7 +17,7 @@ export default async function scheduleReminders(
 
   // Schedule initial notifications
   const notifications = reminders
-    .map((reminder, index) => {
+    .map((reminder) => {
       let reminderDateTime: Date | null = null;
 
       if (
@@ -35,11 +35,28 @@ export default async function scheduleReminders(
       }
 
       if (reminderDateTime && reminderDateTime.getTime() > Date.now()) {
+        const array = new Uint32Array(1);
+        window.crypto.getRandomValues(array);
+        const secure6Digit = (array[0] % 900000) + 100000;
         return {
-          id: index + 1,
+          id: secure6Digit,
           title: "Reminder Alert",
           body: `Reminder: ${reminder.name}`,
           schedule: { at: reminderDateTime },
+          sound: reminder.alarmFileName || "defaultalarm.wav",
+          channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+          actionTypeId: "REMINDER_ACTIONS",
+        };
+      }
+      if (reminderDateTime && reminderDateTime.getTime() <= Date.now()) {
+        const array = new Uint32Array(1);
+        window.crypto.getRandomValues(array);
+        const secure6Digit = (array[0] % 900000) + 100000;
+        return {
+          id: secure6Digit,
+          title: "Reminder Alert",
+          body: `Reminder: ${reminder.name}`,
+          schedule: { at: new Date(Date.now() + 1000) },
           sound: reminder.alarmFileName || "defaultalarm.wav",
           channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
           actionTypeId: "REMINDER_ACTIONS",
@@ -66,17 +83,30 @@ export default async function scheduleReminders(
 
       if (event.actionId === "SNOOZE") {
         const reminderDateTime = new Date(new Date().getTime() + 5 * 60 * 1000);
-        if (reminder.startDate) {
-          reminder.startDate = reminderDateTime.toISOString().split("T")[0];
-        }
-        reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
-        reminder.isRinging = false;
+        await LocalNotifications.cancel({
+          notifications: [{ id: notification.id }],
+        });
+        setReminders((prev) =>
+          prev.map((r) =>
+            r.name === reminder.name
+              ? {
+                  ...r,
+                  startDate: reminderDateTime.toISOString().split("T")[0],
+                  startTime: reminderDateTime.toTimeString().slice(0, 5),
+                  isRinging: false,
+                }
+              : r,
+          ),
+        );
 
+        const array = new Uint32Array(1);
+        window.crypto.getRandomValues(array);
+        const secure6Digit = (array[0] % 900000) + 100000;
         // Reschedule notification
         await LocalNotifications.schedule({
           notifications: [
             {
-              id: Date.now(), // new unique ID
+              id: secure6Digit,
               title: "Reminder Alert",
               body: `Reminder: ${reminder.name}`,
               schedule: { at: reminderDateTime },
@@ -95,15 +125,31 @@ export default async function scheduleReminders(
             reminderDateTime.getTime() +
               (reminder.consecutiveTime ?? 0) * 60 * 1000,
           );
-          reminder.startDate = nextDateTime.toISOString().split("T")[0];
-          reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
-          reminder.isRinging = false;
+          await LocalNotifications.cancel({
+            notifications: [{ id: notification.id }],
+          });
 
+          setReminders((prev) =>
+            prev.map((r) =>
+              r.name === reminder.name
+                ? {
+                    ...r,
+                    startDate: reminderDateTime.toISOString().split("T")[0],
+                    startTime: reminderDateTime.toTimeString().slice(0, 5),
+                    isRinging: false,
+                  }
+                : r,
+            ),
+          );
+
+          const array = new Uint32Array(1);
+          window.crypto.getRandomValues(array);
+          const secure6Digit = (array[0] % 900000) + 100000;
           // Reschedule notification
           await LocalNotifications.schedule({
             notifications: [
               {
-                id: Date.now(), // new unique ID
+                id: secure6Digit,
                 title: "Reminder Alert",
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: nextDateTime },
@@ -134,14 +180,30 @@ export default async function scheduleReminders(
             0,
             0,
           );
-          reminder.startDate = reminderDateTime.toISOString().split("T")[0];
-          reminder.startTime = reminderDateTime.toTimeString().slice(0, 5);
-          reminder.isRinging = false;
+          await LocalNotifications.cancel({
+            notifications: [{ id: notification.id }],
+          });
 
+          setReminders((prev) =>
+            prev.map((r) =>
+              r.name === reminder.name
+                ? {
+                    ...r,
+                    startDate: reminderDateTime.toISOString().split("T")[0],
+                    startTime: reminderDateTime.toTimeString().slice(0, 5),
+                    isRinging: false,
+                  }
+                : r,
+            ),
+          );
+
+          const array = new Uint32Array(1);
+          window.crypto.getRandomValues(array);
+          const secure6Digit = (array[0] % 900000) + 100000;
           await LocalNotifications.schedule({
             notifications: [
               {
-                id: Date.now(), // new unique ID
+                id: secure6Digit,
                 title: "Reminder Alert",
                 body: `Reminder: ${reminder.name}`,
                 schedule: { at: reminderDateTime },
@@ -153,12 +215,7 @@ export default async function scheduleReminders(
             ],
           });
         }
-      } else {
-        reminder.isRinging = true;
       }
-      setReminders((prev) =>
-        prev.map((r) => (r.name === reminder.name ? { ...reminder } : r)),
-      );
     },
   );
 }
