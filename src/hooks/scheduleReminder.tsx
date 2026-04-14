@@ -8,214 +8,183 @@ const channelMap: Record<string, string> = {
   "takemedicine.wav": "ReminderMedicine",
 };
 
+function getNotificationId(reminderName: string): number {
+  let hash = 0;
+  for (let i = 0; i < reminderName.length; i++) {
+    hash = (hash << 5) - hash + reminderName.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % 2_000_000_000 || 1;
+}
+
+function getNextDateTime(reminder: Reminder): Date | null {
+  if (reminder.type === "date" && reminder.startDate && reminder.startTime) {
+    return new Date(`${reminder.startDate}T${reminder.startTime}`);
+  } else if (reminder.type === "consecutive" && reminder.startTime) {
+    const [hours, minutes] = reminder.startTime.split(":").map(Number);
+    const dt = new Date();
+    dt.setHours(hours, minutes, 0, 0);
+    return dt;
+  }
+  return null;
+}
+
+async function scheduleOne(reminder: Reminder, at: Date) {
+  const id = getNotificationId(reminder.name);
+  await LocalNotifications.cancel({ notifications: [{ id }] });
+  await LocalNotifications.schedule({
+    notifications: [
+      {
+        id,
+        title: "Reminder Alert",
+        body: `Reminder: ${reminder.name}`,
+        schedule: { at },
+        sound: reminder.alarmFileName || "defaultalarm.wav",
+        channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+        actionTypeId: "REMINDER_ACTIONS",
+      },
+    ],
+  });
+}
+
+let actionListenerRegistered = false;
+let actionListenerHandle: { remove: () => void } | null = null;
+
+export async function cancelReminder(reminderName: string) {
+  const id = getNotificationId(reminderName);
+  await LocalNotifications.cancel({ notifications: [{ id }] });
+}
+
 export default async function scheduleReminders(
   reminders: Reminder[],
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
 ) {
-  // Ask permission once
   await LocalNotifications.requestPermissions();
 
-  // Schedule initial notifications
-  const notifications = reminders
-    .map((reminder) => {
-      let reminderDateTime: Date | null = null;
-
-      if (
-        reminder.type === "date" &&
-        reminder.startDate &&
-        reminder.startTime
-      ) {
-        reminderDateTime = new Date(
-          `${reminder.startDate}T${reminder.startTime}`,
-        );
-      } else if (reminder.type === "consecutive" && reminder.startTime) {
-        const [hours, minutes] = reminder.startTime.split(":").map(Number);
-        reminderDateTime = new Date();
-        reminderDateTime.setHours(hours, minutes, 0, 0);
-      }
-
-      if (reminderDateTime && reminderDateTime.getTime() > Date.now()) {
-        const array = new Uint32Array(1);
-        window.crypto.getRandomValues(array);
-        const secure6Digit = (array[0] % 900000) + 100000;
-        return {
-          id: secure6Digit,
-          title: "Reminder Alert",
-          body: `Reminder: ${reminder.name}`,
-          schedule: { at: reminderDateTime },
-          sound: reminder.alarmFileName || "defaultalarm.wav",
-          channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-          actionTypeId: "REMINDER_ACTIONS",
-        };
-      }
-      if (reminderDateTime && reminderDateTime.getTime() <= Date.now()) {
-        const array = new Uint32Array(1);
-        window.crypto.getRandomValues(array);
-        const secure6Digit = (array[0] % 900000) + 100000;
-        return {
-          id: secure6Digit,
-          title: "Reminder Alert",
-          body: `Reminder: ${reminder.name}`,
-          schedule: { at: new Date(Date.now() + 1000) },
-          sound: reminder.alarmFileName || "defaultalarm.wav",
-          channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-          actionTypeId: "REMINDER_ACTIONS",
-        };
-      }
-      return null;
-    })
-    .filter(Boolean) as any[];
-
-  if (notifications.length > 0) {
-    await LocalNotifications.schedule({ notifications });
+  const pending = await LocalNotifications.getPending();
+  if (pending.notifications.length > 0) {
+    await LocalNotifications.cancel({ notifications: pending.notifications });
   }
 
-  LocalNotifications.addListener(
+  const now = Date.now();
+  for (const reminder of reminders) {
+    const dt = getNextDateTime(reminder);
+    if (!dt) continue;
+
+    const scheduleAt = dt.getTime() > now ? dt : new Date(now + 1000);
+    await scheduleOne(reminder, scheduleAt);
+  }
+
+  if (actionListenerRegistered) return;
+  actionListenerRegistered = true;
+
+  if (actionListenerHandle) {
+    actionListenerHandle.remove();
+  }
+
+  actionListenerHandle = await LocalNotifications.addListener(
     "localNotificationActionPerformed",
     async (event) => {
-      const { notification } = event;
+      const { notification, actionId } = event;
 
-      // Find the reminder that triggered
-      const reminder = reminders.find(
-        (r) => `Reminder: ${r.name}` === notification.body,
-      );
-      if (!reminder) return;
+      const reminderName = notification.body?.replace("Reminder: ", "");
+      if (!reminderName) return;
 
-      if (event.actionId === "SNOOZE") {
-        const reminderDateTime = new Date(new Date().getTime() + 5 * 60 * 1000);
-        await LocalNotifications.cancel({
-          notifications: [{ id: notification.id }],
-        });
-        setReminders((prev) =>
-          prev.map((r) =>
-            r.name === reminder.name
-              ? {
-                  ...r,
-                  startDate: reminderDateTime.toISOString().split("T")[0],
-                  startTime: reminderDateTime.toTimeString().slice(0, 5),
-                  isRinging: false,
-                }
-              : r,
-          ),
-        );
+      setReminders((prev) => {
+        const reminder = prev.find((r) => r.name === reminderName);
+        if (!reminder) return prev;
 
-        const array = new Uint32Array(1);
-        window.crypto.getRandomValues(array);
-        const secure6Digit = (array[0] % 900000) + 100000;
-        // Reschedule notification
-        await LocalNotifications.schedule({
-          notifications: [
-            {
-              id: secure6Digit,
-              title: "Reminder Alert",
-              body: `Reminder: ${reminder.name}`,
-              schedule: { at: reminderDateTime },
-              sound: reminder.alarmFileName || "defaultalarm.wav",
-              channelId:
-                channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-              actionTypeId: "REMINDER_ACTIONS",
-            },
-          ],
-        });
-      } else if (event.actionId === "STOP") {
-        if (reminder.type === "consecutive" && reminder.startTime) {
-          const reminderDateTime = new Date();
+        let nextDate: string;
+        let nextTime: string;
 
-          const nextDateTime = new Date(
-            reminderDateTime.getTime() +
-              (reminder.consecutiveTime ?? 0) * 60 * 1000,
-          );
-          await LocalNotifications.cancel({
-            notifications: [{ id: notification.id }],
-          });
-
-          setReminders((prev) =>
-            prev.map((r) =>
-              r.name === reminder.name
-                ? {
-                    ...r,
-                    startDate: reminderDateTime.toISOString().split("T")[0],
-                    startTime: reminderDateTime.toTimeString().slice(0, 5),
-                    isRinging: false,
-                  }
-                : r,
-            ),
-          );
-
-          const array = new Uint32Array(1);
-          window.crypto.getRandomValues(array);
-          const secure6Digit = (array[0] % 900000) + 100000;
-          // Reschedule notification
-          await LocalNotifications.schedule({
-            notifications: [
-              {
-                id: secure6Digit,
-                title: "Reminder Alert",
-                body: `Reminder: ${reminder.name}`,
-                schedule: { at: nextDateTime },
-                sound: reminder.alarmFileName || "defaultalarm.wav",
-                channelId:
-                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-                actionTypeId: "REMINDER_ACTIONS",
-              },
-            ],
-          });
+        if (actionId === "SNOOZE") {
+          const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
+          nextDate = snoozeAt.toISOString().split("T")[0];
+          nextTime = snoozeAt.toTimeString().slice(0, 5);
+          scheduleOne(reminder, snoozeAt);
+        } else if (actionId === "STOP") {
+          if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+            const nextAt = new Date(
+              Date.now() + reminder.consecutiveTime * 60 * 1000,
+            );
+            nextDate = nextAt.toISOString().split("T")[0];
+            nextTime = nextAt.toTimeString().slice(0, 5);
+            scheduleOne(reminder, nextAt);
+          } else {
+            const nextAt = new Date();
+            nextAt.setFullYear(nextAt.getFullYear() + 1);
+            if (reminder.startDate) {
+              const orig = new Date(reminder.startDate);
+              nextAt.setMonth(orig.getMonth(), orig.getDate());
+            }
+            if (reminder.startTime) {
+              const [h, m] = reminder.startTime.split(":").map(Number);
+              nextAt.setHours(h, m, 0, 0);
+            }
+            nextDate = nextAt.toISOString().split("T")[0];
+            nextTime = nextAt.toTimeString().slice(0, 5);
+            scheduleOne(reminder, nextAt);
+          }
         } else {
-          const nextAlarm = new Date().setFullYear(
-            new Date().getFullYear() + 1,
-          );
-          const reminderDateTime = new Date(nextAlarm);
-          reminderDateTime.setDate(
-            reminder.startDate
-              ? new Date(reminder.startDate).getDate()
-              : reminderDateTime.getDate(),
-          );
-          reminderDateTime.setHours(
-            reminder.startTime
-              ? parseInt(reminder.startTime.split(":")[0])
-              : reminderDateTime.getHours(),
-            reminder.startTime
-              ? parseInt(reminder.startTime.split(":")[1])
-              : reminderDateTime.getMinutes(),
-            0,
-            0,
-          );
-          await LocalNotifications.cancel({
-            notifications: [{ id: notification.id }],
-          });
-
-          setReminders((prev) =>
-            prev.map((r) =>
-              r.name === reminder.name
-                ? {
-                    ...r,
-                    startDate: reminderDateTime.toISOString().split("T")[0],
-                    startTime: reminderDateTime.toTimeString().slice(0, 5),
-                    isRinging: false,
-                  }
-                : r,
-            ),
-          );
-
-          const array = new Uint32Array(1);
-          window.crypto.getRandomValues(array);
-          const secure6Digit = (array[0] % 900000) + 100000;
-          await LocalNotifications.schedule({
-            notifications: [
-              {
-                id: secure6Digit,
-                title: "Reminder Alert",
-                body: `Reminder: ${reminder.name}`,
-                schedule: { at: reminderDateTime },
-                sound: reminder.alarmFileName || "defaultalarm.wav",
-                channelId:
-                  channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-                actionTypeId: "REMINDER_ACTIONS",
-              },
-            ],
-          });
+          const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
+          nextDate = snoozeAt.toISOString().split("T")[0];
+          nextTime = snoozeAt.toTimeString().slice(0, 5);
+          scheduleOne(reminder, snoozeAt);
         }
-      }
+
+        return prev.map((r) =>
+          r.name === reminderName
+            ? {
+                ...r,
+                startDate: nextDate,
+                startTime: nextTime,
+                isRinging: false,
+              }
+            : r,
+        );
+      });
+    },
+  );
+
+  await LocalNotifications.addListener(
+    "localNotificationReceived",
+    (notification) => {
+      const reminderName = notification.body?.replace("Reminder: ", "");
+      if (!reminderName) return;
+
+      setReminders((prev) => {
+        const reminder = prev.find((r) => r.name === reminderName);
+        if (!reminder) return prev;
+
+        let nextDate = reminder.startDate;
+        let nextTime = reminder.startTime;
+
+        if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+          const nextAt = new Date(
+            Date.now() + reminder.consecutiveTime * 60 * 1000,
+          );
+          nextDate = nextAt.toISOString().split("T")[0];
+          nextTime = nextAt.toTimeString().slice(0, 5);
+          scheduleOne(reminder, nextAt);
+        } else if (reminder.type === "date") {
+          const nextAt = new Date();
+          nextAt.setFullYear(nextAt.getFullYear() + 1);
+          nextDate = nextAt.toISOString().split("T")[0];
+          nextTime = nextAt.toTimeString().slice(0, 5);
+          scheduleOne(reminder, nextAt);
+        }
+
+        return prev.map((r) =>
+          r.name === reminderName
+            ? {
+                ...r,
+                startDate: nextDate,
+                startTime: nextTime,
+                isRinging: true,
+              }
+            : r,
+        );
+      });
     },
   );
 }
