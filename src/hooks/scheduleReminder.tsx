@@ -47,104 +47,18 @@ async function scheduleOne(reminder: Reminder, at: Date) {
   });
 }
 
-let actionListenerRegistered = false;
-let actionListenerHandle: { remove: () => void } | null = null;
-
 export async function cancelReminder(reminderName: string) {
   const id = getNotificationId(reminderName);
   await LocalNotifications.cancel({ notifications: [{ id }] });
 }
 
-export default async function scheduleReminders(
-  reminders: Reminder[],
+let listenersInitialized = false;
+
+export async function initNotificationListeners(
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
 ) {
-  await LocalNotifications.requestPermissions();
-
-  const pending = await LocalNotifications.getPending();
-  if (pending.notifications.length > 0) {
-    await LocalNotifications.cancel({ notifications: pending.notifications });
-  }
-
-  const now = Date.now();
-  for (const reminder of reminders) {
-    const dt = getNextDateTime(reminder);
-    if (!dt) continue;
-
-    const scheduleAt = dt.getTime() > now ? dt : new Date(now + 1000);
-    await scheduleOne(reminder, scheduleAt);
-  }
-
-  if (actionListenerRegistered) return;
-  actionListenerRegistered = true;
-
-  if (actionListenerHandle) {
-    actionListenerHandle.remove();
-  }
-
-  actionListenerHandle = await LocalNotifications.addListener(
-    "localNotificationActionPerformed",
-    async (event) => {
-      const { notification, actionId } = event;
-
-      const reminderName = notification.body?.replace("Reminder: ", "");
-      if (!reminderName) return;
-
-      setReminders((prev) => {
-        const reminder = prev.find((r) => r.name === reminderName);
-        if (!reminder) return prev;
-
-        let nextDate: string;
-        let nextTime: string;
-
-        if (actionId === "SNOOZE") {
-          const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
-          nextDate = snoozeAt.toISOString().split("T")[0];
-          nextTime = snoozeAt.toTimeString().slice(0, 5);
-          scheduleOne(reminder, snoozeAt);
-        } else if (actionId === "STOP") {
-          if (reminder.type === "consecutive" && reminder.consecutiveTime) {
-            const nextAt = new Date(
-              Date.now() + reminder.consecutiveTime * 60 * 1000,
-            );
-            nextDate = nextAt.toISOString().split("T")[0];
-            nextTime = nextAt.toTimeString().slice(0, 5);
-            scheduleOne(reminder, nextAt);
-          } else {
-            const nextAt = new Date();
-            nextAt.setFullYear(nextAt.getFullYear() + 1);
-            if (reminder.startDate) {
-              const orig = new Date(reminder.startDate);
-              nextAt.setMonth(orig.getMonth(), orig.getDate());
-            }
-            if (reminder.startTime) {
-              const [h, m] = reminder.startTime.split(":").map(Number);
-              nextAt.setHours(h, m, 0, 0);
-            }
-            nextDate = nextAt.toISOString().split("T")[0];
-            nextTime = nextAt.toTimeString().slice(0, 5);
-            scheduleOne(reminder, nextAt);
-          }
-        } else {
-          const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
-          nextDate = snoozeAt.toISOString().split("T")[0];
-          nextTime = snoozeAt.toTimeString().slice(0, 5);
-          scheduleOne(reminder, snoozeAt);
-        }
-
-        return prev.map((r) =>
-          r.name === reminderName
-            ? {
-                ...r,
-                startDate: nextDate,
-                startTime: nextTime,
-                isRinging: false,
-              }
-            : r,
-        );
-      });
-    },
-  );
+  if (listenersInitialized) return;
+  listenersInitialized = true;
 
   await LocalNotifications.addListener(
     "localNotificationReceived",
@@ -165,13 +79,23 @@ export default async function scheduleReminders(
           );
           nextDate = nextAt.toISOString().split("T")[0];
           nextTime = nextAt.toTimeString().slice(0, 5);
-          scheduleOne(reminder, nextAt);
+          scheduleOne(
+            { ...reminder, startDate: nextDate, startTime: nextTime },
+            nextAt,
+          );
         } else if (reminder.type === "date") {
           const nextAt = new Date();
-          nextAt.setFullYear(nextAt.getFullYear() + 1);
+          nextAt.setDate(nextAt.getDate() + 1);
+          if (reminder.startTime) {
+            const [h, m] = reminder.startTime.split(":").map(Number);
+            nextAt.setHours(h, m, 0, 0);
+          }
           nextDate = nextAt.toISOString().split("T")[0];
           nextTime = nextAt.toTimeString().slice(0, 5);
-          scheduleOne(reminder, nextAt);
+          scheduleOne(
+            { ...reminder, startDate: nextDate, startTime: nextTime },
+            nextAt,
+          );
         }
 
         return prev.map((r) =>
@@ -187,4 +111,98 @@ export default async function scheduleReminders(
       });
     },
   );
+
+  await LocalNotifications.addListener(
+    "localNotificationActionPerformed",
+    async (event) => {
+      const { notification, actionId } = event;
+      const reminderName = notification.body?.replace("Reminder: ", "");
+      if (!reminderName) return;
+
+      setReminders((prev) => {
+        const reminder = prev.find((r) => r.name === reminderName);
+        if (!reminder) return prev;
+
+        let nextDate: string;
+        let nextTime: string;
+
+        if (actionId === "SNOOZE") {
+          const nextAt = new Date(Date.now() + 5 * 60 * 1000);
+          nextDate = nextAt.toISOString().split("T")[0];
+          nextTime = nextAt.toTimeString().slice(0, 5);
+          scheduleOne(reminder, nextAt);
+        } else if (actionId === "STOP") {
+          if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+            const nextAt = new Date(
+              Date.now() + reminder.consecutiveTime * 60 * 1000,
+            );
+            nextDate = nextAt.toISOString().split("T")[0];
+            nextTime = nextAt.toTimeString().slice(0, 5);
+            scheduleOne(reminder, nextAt);
+          } else {
+            const nextAt = new Date();
+            nextAt.setFullYear(nextAt.getFullYear() + 1);
+            if (reminder.startTime) {
+              const [h, m] = reminder.startTime.split(":").map(Number);
+              nextAt.setHours(h, m, 0, 0);
+            }
+            nextDate = nextAt.toISOString().split("T")[0];
+            nextTime = nextAt.toTimeString().slice(0, 5);
+            scheduleOne(reminder, nextAt);
+          }
+        } else {
+          // Tapped notification body — treat as snooze
+          const nextAt = new Date(Date.now() + 5 * 60 * 1000);
+          nextDate = nextAt.toISOString().split("T")[0];
+          nextTime = nextAt.toTimeString().slice(0, 5);
+          scheduleOne(reminder, nextAt);
+        }
+
+        return prev.map((r) =>
+          r.name === reminderName
+            ? {
+                ...r,
+                startDate: nextDate,
+                startTime: nextTime,
+                isRinging: false,
+              }
+            : r,
+        );
+      });
+    },
+  );
+}
+
+// scheduleReminders now only handles scheduling, no listeners
+export default async function scheduleReminders(reminders: Reminder[]) {
+  await LocalNotifications.requestPermissions();
+
+  const pending = await LocalNotifications.getPending();
+  if (pending.notifications.length > 0) {
+    await LocalNotifications.cancel({ notifications: pending.notifications });
+  }
+
+  const now = Date.now();
+  for (const reminder of reminders) {
+    const dt = getNextDateTime(reminder);
+    if (!dt) continue;
+
+    let scheduleAt: Date;
+    if (dt.getTime() <= now) {
+      if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+        scheduleAt = new Date(now + reminder.consecutiveTime * 60 * 1000);
+      } else {
+        scheduleAt = new Date();
+        scheduleAt.setDate(scheduleAt.getDate() + 1);
+        if (reminder.startTime) {
+          const [h, m] = reminder.startTime.split(":").map(Number);
+          scheduleAt.setHours(h, m, 0, 0);
+        }
+      }
+    } else {
+      scheduleAt = dt;
+    }
+
+    await scheduleOne(reminder, scheduleAt);
+  }
 }

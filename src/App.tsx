@@ -6,7 +6,9 @@ import ReminderList from "./components/ReminderList";
 import AddReminderButton from "./components/AddReminderButton";
 import usePersistentState from "./hooks/usePersistentState";
 import type { Reminder } from "./interface/Reminder";
-import scheduleReminders from "./hooks/scheduleReminder";
+import scheduleReminders, {
+  initNotificationListeners,
+} from "./hooks/scheduleReminder";
 import AlarmWorker from "./alarmWorker?worker";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
@@ -121,7 +123,10 @@ function App() {
 
   // Web worker listener — runs once on mount
   useEffect(() => {
-    if (platform !== "web") return;
+    if (platform !== "web") {
+      initNotificationListeners(setReminders);
+      return;
+    }
 
     worker.onmessage = (event) => {
       const { type, payload } = event.data;
@@ -169,14 +174,11 @@ function App() {
     });
   }, []);
 
-  // Schedule reminders whenever the list changes
   useEffect(() => {
     if (platform === "web") {
       worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
     } else {
-      // scheduleReminders handles cancelling pending + rescheduling cleanly
-      // and registers the action listener only once internally
-      scheduleReminders(reminders, setReminders);
+      scheduleReminders(reminders);
     }
   }, [reminders]);
 
