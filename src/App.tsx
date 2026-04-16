@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import M from "materialize-css";
 import Settings from "./components/Settings";
@@ -8,6 +8,8 @@ import usePersistentState from "./hooks/usePersistentState";
 import type { Reminder } from "./interface/Reminder";
 import scheduleReminders, {
   initNotificationListeners,
+  cancelReminder,
+  scheduleOneReminder,
 } from "./hooks/scheduleReminder";
 import AlarmWorker from "./alarmWorker?worker";
 import { LocalNotifications } from "@capacitor/local-notifications";
@@ -41,6 +43,10 @@ function App() {
     number | null
   >(null);
 
+  // Track which reminder names are currently ringing so we
+  // can skip re-scheduling when only isRinging changes
+  const ringingRef = useRef<Set<string>>(new Set());
+
   const stopAlarmSound = () => {
     if (alarmAudio) {
       alarmAudio.pause();
@@ -61,86 +67,105 @@ function App() {
   };
 
   const handleDeleteReminder = (index: number) => {
+    const reminder = reminders[index];
+    if (reminder && platform !== "web") {
+      cancelReminder(reminder.name);
+    }
     setReminders((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSnoozeReminder = (index: number) => {
     const reminder = reminders[index];
-    if (reminder) {
-      const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
-      const snoozedReminder = {
-        ...reminder,
-        startDate: snoozeAt.toISOString().split("T")[0],
-        startTime: snoozeAt.toTimeString().slice(0, 5),
-        isRinging: false,
-      };
-      setReminders((prev) => {
-        const updated = prev.map((r, i) => (i === index ? snoozedReminder : r));
-        if (platform === "web") {
-          worker.postMessage({ type: "SET_REMINDERS", payload: updated });
-        }
-        return updated;
-      });
+    if (!reminder) return;
+
+    const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
+    const nextDate = snoozeAt.toISOString().split("T")[0];
+    const nextTime = snoozeAt.toTimeString().slice(0, 5);
+
+    const snoozedReminder: Reminder = {
+      ...reminder,
+      startDate: nextDate,
+      startTime: nextTime,
+      isRinging: false,
+    };
+
+    ringingRef.current.delete(reminder.name);
+
+    if (platform !== "web") {
+      // Override the auto-rescheduled alarm from ReminderReceiver with snooze time
+      scheduleOneReminder(snoozedReminder, snoozeAt);
+    }
+
+    setReminders((prev) => {
+      const updated = prev.map((r, i) => (i === index ? snoozedReminder : r));
       if (platform === "web") {
+        worker.postMessage({ type: "SET_REMINDERS", payload: updated });
         stopAlarmSound();
       }
-    }
+      return updated;
+    });
   };
 
   const handleStopReminder = (index: number) => {
     const reminder = reminders[index];
-    if (reminder) {
-      let nextDate: string;
-      let nextTime: string;
+    if (!reminder) return;
 
-      if (reminder.type === "consecutive" && reminder.consecutiveTime) {
-        const nextAt = new Date(
-          Date.now() + reminder.consecutiveTime * 60 * 1000,
-        );
-        nextDate = nextAt.toISOString().split("T")[0];
-        nextTime = nextAt.toTimeString().slice(0, 5);
-      } else {
-        const nextAt = new Date();
-        nextAt.setFullYear(nextAt.getFullYear() + 1);
-        nextDate = nextAt.toISOString().split("T")[0];
-        nextTime = reminder.startTime ?? nextAt.toTimeString().slice(0, 5);
-      }
+    let nextDate: string;
+    let nextTime: string;
+    let nextAt: Date;
 
-      const stoppedReminder = {
-        ...reminder,
-        startDate: nextDate,
-        startTime: nextTime,
-        isRinging: false,
-      };
-      setReminders((prev) =>
-        prev.map((r, i) => (i === index ? stoppedReminder : r)),
-      );
+    if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+      nextAt = new Date(Date.now() + reminder.consecutiveTime * 60 * 1000);
+      nextDate = nextAt.toISOString().split("T")[0];
+      nextTime = nextAt.toTimeString().slice(0, 5);
+    } else {
+      nextAt = new Date();
+      nextAt.setFullYear(nextAt.getFullYear() + 1);
+      nextDate = nextAt.toISOString().split("T")[0];
+      nextTime = reminder.startTime ?? nextAt.toTimeString().slice(0, 5);
+    }
+
+    const stoppedReminder: Reminder = {
+      ...reminder,
+      startDate: nextDate,
+      startTime: nextTime,
+      isRinging: false,
+    };
+
+    ringingRef.current.delete(reminder.name);
+
+    if (platform !== "web") {
+      // Override auto-rescheduled alarm with correct next time
+      scheduleOneReminder(stoppedReminder, nextAt);
+    }
+
+    setReminders((prev) => {
+      const updated = prev.map((r, i) => (i === index ? stoppedReminder : r));
       if (platform === "web") {
+        worker.postMessage({ type: "SET_REMINDERS", payload: updated });
         stopAlarmSound();
       }
-    }
+      return updated;
+    });
   };
 
-  // Web worker listener — runs once on mount
+  // Init listeners + web worker — runs once on mount
   useEffect(() => {
     if (platform !== "web") {
-      initNotificationListeners(setReminders);
+      initNotificationListeners(setReminders, ringingRef);
       return;
     }
-
     worker.onmessage = (event) => {
       const { type, payload } = event.data;
       if (type === "TRIGGER_ALARM") {
         setReminders((prev) =>
           prev.map((r) => (r.name === payload.name ? { ...r, ...payload } : r)),
         );
-
         if (Notification.permission === "granted") {
           const notification = new Notification("Reminder Alert", {
             body: `Reminder: ${payload.name}`,
             requireInteraction: true,
           });
-
           notification.onclick = () => {
             if (payload.alarmFile) {
               if (alarmAudio) {
@@ -165,19 +190,23 @@ function App() {
     M.FormSelect.init(selectElems);
     M.Tooltip.init(elems);
     M.Modal.init(modalElems, {
-      onOpenEnd: () => {
-        M.updateTextFields();
-      },
-      onCloseEnd: () => {
-        setSelectedReminderIndex(null);
-      },
+      onOpenEnd: () => M.updateTextFields(),
+      onCloseEnd: () => setSelectedReminderIndex(null),
     });
   }, []);
 
+  // Only reschedule when reminders actually change (not just isRinging toggling)
   useEffect(() => {
     if (platform === "web") {
       worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
-    } else {
+      return;
+    }
+
+    // Skip if the only change was isRinging flipping — ReminderReceiver handles that
+    const hasNonRingingChange = reminders.some(
+      (r) => !ringingRef.current.has(r.name) || !r.isRinging,
+    );
+    if (hasNonRingingChange) {
       scheduleReminders(reminders);
     }
   }, [reminders]);

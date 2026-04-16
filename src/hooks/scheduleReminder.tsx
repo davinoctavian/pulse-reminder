@@ -1,5 +1,7 @@
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { Reminder } from "../interface/Reminder";
+import NativeScheduler from "../nativeScheduler";
+import type React from "react";
 
 const channelMap: Record<string, string> = {
   "defaultalarm.wav": "ReminderDefault",
@@ -29,95 +31,64 @@ function getNextDateTime(reminder: Reminder): Date | null {
   return null;
 }
 
-async function scheduleOne(reminder: Reminder, at: Date) {
+// Exported so App.tsx can call it directly from Snooze/Stop buttons
+export async function scheduleOneReminder(reminder: Reminder, at: Date) {
   const id = getNotificationId(reminder.name);
-  await LocalNotifications.cancel({ notifications: [{ id }] });
-  await LocalNotifications.schedule({
-    notifications: [
-      {
-        id,
-        title: "Reminder Alert",
-        body: `Reminder: ${reminder.name}`,
-        schedule: { at },
-        sound: reminder.alarmFileName || "defaultalarm.wav",
-        channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
-        actionTypeId: "REMINDER_ACTIONS",
-      },
-    ],
+  await NativeScheduler.cancel({ notificationId: id });
+  await NativeScheduler.schedule({
+    reminderName: reminder.name,
+    reminderType: reminder.type,
+    consecutiveTime: reminder.consecutiveTime ?? 0,
+    alarmFile: reminder.alarmFileName || "defaultalarm.wav",
+    channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
+    notificationId: id,
+    triggerAtMillis: at.getTime(),
   });
 }
 
+// Exported so App.tsx can cancel when deleting a reminder
 export async function cancelReminder(reminderName: string) {
   const id = getNotificationId(reminderName);
-  await LocalNotifications.cancel({ notifications: [{ id }] });
+  await NativeScheduler.cancel({ notificationId: id });
 }
 
 let listenersInitialized = false;
 
 export async function initNotificationListeners(
   setReminders: React.Dispatch<React.SetStateAction<Reminder[]>>,
+  ringingRef: React.MutableRefObject<Set<string>>,
 ) {
   if (listenersInitialized) return;
   listenersInitialized = true;
 
+  // Only updates isRinging for in-app UI — rescheduling is handled by ReminderReceiver.java
   await LocalNotifications.addListener(
     "localNotificationReceived",
     (notification) => {
       const reminderName = notification.body?.replace("Reminder: ", "");
       if (!reminderName) return;
 
-      setReminders((prev) => {
-        const reminder = prev.find((r) => r.name === reminderName);
-        if (!reminder) return prev;
+      // Track that this reminder is ringing so scheduleReminders
+      // useEffect in App.tsx doesn't needlessly re-schedule
+      ringingRef.current.add(reminderName);
 
-        let nextDate = reminder.startDate;
-        let nextTime = reminder.startTime;
-
-        if (reminder.type === "consecutive" && reminder.consecutiveTime) {
-          const nextAt = new Date(
-            Date.now() + reminder.consecutiveTime * 60 * 1000,
-          );
-          nextDate = nextAt.toISOString().split("T")[0];
-          nextTime = nextAt.toTimeString().slice(0, 5);
-          scheduleOne(
-            { ...reminder, startDate: nextDate, startTime: nextTime },
-            nextAt,
-          );
-        } else if (reminder.type === "date") {
-          const nextAt = new Date();
-          nextAt.setDate(nextAt.getDate() + 1);
-          if (reminder.startTime) {
-            const [h, m] = reminder.startTime.split(":").map(Number);
-            nextAt.setHours(h, m, 0, 0);
-          }
-          nextDate = nextAt.toISOString().split("T")[0];
-          nextTime = nextAt.toTimeString().slice(0, 5);
-          scheduleOne(
-            { ...reminder, startDate: nextDate, startTime: nextTime },
-            nextAt,
-          );
-        }
-
-        return prev.map((r) =>
-          r.name === reminderName
-            ? {
-                ...r,
-                startDate: nextDate,
-                startTime: nextTime,
-                isRinging: true,
-              }
-            : r,
-        );
-      });
+      setReminders((prev) =>
+        prev.map((r) =>
+          r.name === reminderName ? { ...r, isRinging: true } : r,
+        ),
+      );
     },
   );
 
+  // Handles notification action buttons (Snooze / Stop) from the shade
   await LocalNotifications.addListener(
     "localNotificationActionPerformed",
     async (event) => {
       const { notification, actionId } = event;
       const reminderName = notification.body?.replace("Reminder: ", "");
       if (!reminderName) return;
+
+      ringingRef.current.delete(reminderName);
 
       setReminders((prev) => {
         const reminder = prev.find((r) => r.name === reminderName);
@@ -127,19 +98,22 @@ export async function initNotificationListeners(
         let nextTime: string;
 
         if (actionId === "SNOOZE") {
+          // Override ReminderReceiver's auto-reschedule with 5min snooze
           const nextAt = new Date(Date.now() + 5 * 60 * 1000);
           nextDate = nextAt.toISOString().split("T")[0];
           nextTime = nextAt.toTimeString().slice(0, 5);
-          scheduleOne(reminder, nextAt);
+          scheduleOneReminder(reminder, nextAt);
         } else if (actionId === "STOP") {
           if (reminder.type === "consecutive" && reminder.consecutiveTime) {
+            // ReminderReceiver already scheduled next consecutive correctly
             const nextAt = new Date(
               Date.now() + reminder.consecutiveTime * 60 * 1000,
             );
             nextDate = nextAt.toISOString().split("T")[0];
             nextTime = nextAt.toTimeString().slice(0, 5);
-            scheduleOne(reminder, nextAt);
+            // No scheduleOneReminder call — ReminderReceiver's schedule is correct
           } else {
+            // Date type — push to next year, cancel ReminderReceiver's next-day reschedule
             const nextAt = new Date();
             nextAt.setFullYear(nextAt.getFullYear() + 1);
             if (reminder.startTime) {
@@ -148,14 +122,17 @@ export async function initNotificationListeners(
             }
             nextDate = nextAt.toISOString().split("T")[0];
             nextTime = nextAt.toTimeString().slice(0, 5);
-            scheduleOne(reminder, nextAt);
+            scheduleOneReminder(
+              { ...reminder, startDate: nextDate, startTime: nextTime },
+              nextAt,
+            );
           }
         } else {
-          // Tapped notification body — treat as snooze
+          // Tapped notification body — snooze 5 min
           const nextAt = new Date(Date.now() + 5 * 60 * 1000);
           nextDate = nextAt.toISOString().split("T")[0];
           nextTime = nextAt.toTimeString().slice(0, 5);
-          scheduleOne(reminder, nextAt);
+          scheduleOneReminder(reminder, nextAt);
         }
 
         return prev.map((r) =>
@@ -173,14 +150,9 @@ export async function initNotificationListeners(
   );
 }
 
-// scheduleReminders now only handles scheduling, no listeners
+// Schedules initial/first occurrence only — ReminderReceiver handles subsequent ones
 export default async function scheduleReminders(reminders: Reminder[]) {
   await LocalNotifications.requestPermissions();
-
-  const pending = await LocalNotifications.getPending();
-  if (pending.notifications.length > 0) {
-    await LocalNotifications.cancel({ notifications: pending.notifications });
-  }
 
   const now = Date.now();
   for (const reminder of reminders) {
@@ -203,6 +175,6 @@ export default async function scheduleReminders(reminders: Reminder[]) {
       scheduleAt = dt;
     }
 
-    await scheduleOne(reminder, scheduleAt);
+    await scheduleOneReminder(reminder, scheduleAt);
   }
 }

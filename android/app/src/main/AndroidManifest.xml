@@ -42,6 +42,9 @@
             android:name=".ReminderForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+        <receiver
+            android:name=".ReminderReceiver"
+            android:exported="false" />
 
     </application>
 
