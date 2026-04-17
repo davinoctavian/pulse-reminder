@@ -12,13 +12,14 @@ import android.provider.Settings;
 import android.os.PowerManager;
 
 import com.getcapacitor.BridgeActivity;
+import com.davinoctavian.pulsereminderapp.NativeSchedulerPlugin;
 
 public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
         registerPlugin(NativeSchedulerPlugin.class);
+        super.onCreate(savedInstanceState);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);

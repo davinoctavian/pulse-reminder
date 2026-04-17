@@ -61,6 +61,22 @@ export async function initNotificationListeners(
   if (listenersInitialized) return;
   listenersInitialized = true;
 
+  await NativeScheduler.addListener("reminderUpdated", (data) => {
+    ringingRef.current.delete(data.reminderName);
+    setReminders((prev) =>
+      prev.map((r) =>
+        r.name === data.reminderName
+          ? {
+              ...r,
+              startDate: data.nextDate,
+              startTime: data.nextTime,
+              isRinging: false,
+            }
+          : r,
+      ),
+    );
+  });
+
   // Only updates isRinging for in-app UI — rescheduling is handled by ReminderReceiver.java
   await LocalNotifications.addListener(
     "localNotificationReceived",

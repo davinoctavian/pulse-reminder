@@ -4,9 +4,35 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-
 @CapacitorPlugin(name = "NativeScheduler")
 public class NativeSchedulerPlugin extends Plugin {
+
+    private static NativeSchedulerPlugin instance;
+
+    @Override
+    public void load() {
+        instance = this;
+        // Register broadcast receiver to forward events to WebView
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(getContext())
+            .registerReceiver(reminderUpdateReceiver,
+                new android.content.IntentFilter("REMINDER_UPDATED"));
+    }
+
+    private final android.content.BroadcastReceiver reminderUpdateReceiver =
+        new android.content.BroadcastReceiver() {
+            @Override
+            public void onReceive(android.content.Context context, android.content.Intent intent) {
+                String reminderName = intent.getStringExtra("reminderName");
+                String nextDate = intent.getStringExtra("nextDate");
+                String nextTime = intent.getStringExtra("nextTime");
+
+                com.getcapacitor.JSObject data = new com.getcapacitor.JSObject();
+                data.put("reminderName", reminderName);
+                data.put("nextDate", nextDate);
+                data.put("nextTime", nextTime);
+                notifyListeners("reminderUpdated", data);
+            }
+        };
 
     @PluginMethod
     public void schedule(PluginCall call) {
