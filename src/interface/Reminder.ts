@@ -5,6 +5,7 @@ export interface Reminder {
   startDate?: string;
   startTime?: string;
   consecutiveTime?: number;
+  snoozeTime?: number;
   alarmFile?: string | null;
   alarmFileName?: string | null;
   isRinging: boolean;

@@ -19,6 +19,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         String reminderName = intent.getStringExtra("reminderName");
         String reminderType = intent.getStringExtra("reminderType");
         int consecutiveTime = intent.getIntExtra("consecutiveTime", 0);
+        int snoozeTime = intent.getIntExtra("snoozeTime", 5);
         String alarmFile = intent.getStringExtra("alarmFile");
         String channelId = intent.getStringExtra("channelId");
         int notificationId = intent.getIntExtra("notificationId", 0);
@@ -29,8 +30,8 @@ public class ReminderReceiver extends BroadcastReceiver {
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             nm.cancel(notificationId);
 
-            // Reschedule after 5 minutes
-            long snoozeAt = System.currentTimeMillis() + (5 * 60 * 1000L);
+            // Reschedule after snoozeTime minutes
+            long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
             scheduleNext(context, reminderName, reminderType, consecutiveTime,
                     alarmFile, channelId, notificationId, snoozeAt);
             notifyWebView(context, reminderName, snoozeAt);
@@ -65,7 +66,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         // Reschedule next occurrence immediately so it survives ignore/dismiss
         long nextTime;
         if ("consecutive".equals(reminderType) && consecutiveTime > 0) {
-            nextTime = System.currentTimeMillis() + (5 * 60 * 1000L);
+            nextTime = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
         } else {
             nextTime = startTimeMillis > 0
                     ? startTimeMillis + (24 * 60 * 60 * 1000L)
@@ -78,7 +79,7 @@ public class ReminderReceiver extends BroadcastReceiver {
 
     private void showNotification(Context context, int id, String reminderName,
                                    String channelId, String reminderType,
-                                   int consecutiveTime, String alarmFile,
+                                   int consecutiveTime, int snoozeTime, String alarmFile,
                                    long startTimeMillis) {
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
@@ -100,6 +101,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         snoozeIntent.putExtra("reminderName", reminderName);
         snoozeIntent.putExtra("reminderType", reminderType);
         snoozeIntent.putExtra("consecutiveTime", consecutiveTime);
+        snoozeIntent.putExtra("snoozeTime", snoozeTime);
         snoozeIntent.putExtra("alarmFile", alarmFile);
         snoozeIntent.putExtra("channelId", channelId);
         snoozeIntent.putExtra("notificationId", id);
@@ -115,6 +117,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         stopIntent.putExtra("reminderName", reminderName);
         stopIntent.putExtra("reminderType", reminderType);
         stopIntent.putExtra("consecutiveTime", consecutiveTime);
+        stopIntent.putExtra("snoozeTime", snoozeTime);
         stopIntent.putExtra("alarmFile", alarmFile);
         stopIntent.putExtra("channelId", channelId);
         stopIntent.putExtra("notificationId", id);
@@ -138,12 +141,13 @@ public class ReminderReceiver extends BroadcastReceiver {
     }
 
     private void scheduleNext(Context context, String reminderName, String reminderType,
-                               int consecutiveTime, String alarmFile, String channelId,
+                               int consecutiveTime, int snoozeTime, String alarmFile, String channelId,
                                int notificationId, long triggerAtMillis) {
         Intent nextIntent = new Intent(context, ReminderReceiver.class);
         nextIntent.putExtra("reminderName", reminderName);
         nextIntent.putExtra("reminderType", reminderType);
         nextIntent.putExtra("consecutiveTime", consecutiveTime);
+        nextIntent.putExtra("snoozeTime", snoozeTime);
         nextIntent.putExtra("alarmFile", alarmFile);
         nextIntent.putExtra("channelId", channelId);
         nextIntent.putExtra("notificationId", notificationId);

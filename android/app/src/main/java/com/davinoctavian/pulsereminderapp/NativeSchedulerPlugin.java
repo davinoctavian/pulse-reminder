@@ -39,6 +39,7 @@ public class NativeSchedulerPlugin extends Plugin {
         String reminderName = call.getString("reminderName", "");
         String reminderType = call.getString("reminderType", "date");
         int consecutiveTime = call.getInt("consecutiveTime", 0);
+        int snoozeTime = call.getInt("snoozeTime", 5);
         String alarmFile = call.getString("alarmFile", "defaultalarm.wav");
         String channelId = call.getString("channelId", "ReminderDefault");
         int notificationId = call.getInt("notificationId", 0);
@@ -46,7 +47,7 @@ public class NativeSchedulerPlugin extends Plugin {
 
         NativeScheduler.schedule(
             getContext(), reminderName, reminderType,
-            consecutiveTime, alarmFile, channelId,
+            consecutiveTime, snoozeTime, alarmFile, channelId,
             notificationId, triggerAtMillis
         );
         call.resolve();

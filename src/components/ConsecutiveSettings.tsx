@@ -51,7 +51,7 @@ function ConsecutiveSettings({
             <input
               id="consecutive_time"
               type="number"
-              value={consecutiveTime}
+              value={consecutiveTime || ""}
               onChange={(e) =>
                 setConsecutiveTime(parseInt(e.target.value) || 0)
               }

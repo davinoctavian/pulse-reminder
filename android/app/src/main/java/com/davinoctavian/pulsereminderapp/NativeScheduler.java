@@ -9,13 +9,14 @@ import android.os.Build;
 public class NativeScheduler {
 
     public static void schedule(Context context, String reminderName, String reminderType,
-                                 int consecutiveTime, String alarmFile, String channelId,
+                                 int consecutiveTime, int snoozeTime, String alarmFile, String channelId,
                                  int notificationId, long triggerAtMillis) {
 
         Intent intent = new Intent(context, ReminderReceiver.class);
         intent.putExtra("reminderName", reminderName);
         intent.putExtra("reminderType", reminderType);
         intent.putExtra("consecutiveTime", consecutiveTime);
+        intent.putExtra("snoozeTime", snoozeTime);
         intent.putExtra("alarmFile", alarmFile);
         intent.putExtra("channelId", channelId);
         intent.putExtra("notificationId", notificationId);

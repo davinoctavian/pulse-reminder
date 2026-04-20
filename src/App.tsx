@@ -78,7 +78,9 @@ function App() {
     const reminder = reminders[index];
     if (!reminder) return;
 
-    const snoozeAt = new Date(Date.now() + 5 * 60 * 1000);
+    const snoozeAt = new Date(
+      Date.now() + (reminder.snoozeTime || 5) * 60 * 1000,
+    );
     const nextDate = snoozeAt.toISOString().split("T")[0];
     const nextTime = snoozeAt.toTimeString().slice(0, 5);
 

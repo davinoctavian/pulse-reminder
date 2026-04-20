@@ -39,6 +39,7 @@ export async function scheduleOneReminder(reminder: Reminder, at: Date) {
     reminderName: reminder.name,
     reminderType: reminder.type,
     consecutiveTime: reminder.consecutiveTime ?? 0,
+    snoozeTime: reminder.snoozeTime ?? 5,
     alarmFile: reminder.alarmFileName || "defaultalarm.wav",
     channelId: channelMap[reminder.alarmFileName || "defaultalarm.wav"],
     notificationId: id,
@@ -114,8 +115,10 @@ export async function initNotificationListeners(
         let nextTime: string;
 
         if (actionId === "SNOOZE") {
-          // Override ReminderReceiver's auto-reschedule with 5min snooze
-          const nextAt = new Date(Date.now() + 5 * 60 * 1000);
+          // Override ReminderReceiver's auto-reschedule
+          const nextAt = new Date(
+            Date.now() + (reminder.snoozeTime || 5) * 60 * 1000,
+          );
           nextDate = nextAt.toISOString().split("T")[0];
           nextTime = nextAt.toTimeString().slice(0, 5);
           scheduleOneReminder(reminder, nextAt);
@@ -144,8 +147,10 @@ export async function initNotificationListeners(
             );
           }
         } else {
-          // Tapped notification body — snooze 5 min
-          const nextAt = new Date(Date.now() + 5 * 60 * 1000);
+          // Tapped notification body — snooze
+          const nextAt = new Date(
+            Date.now() + (reminder.snoozeTime || 5) * 60 * 1000,
+          );
           nextDate = nextAt.toISOString().split("T")[0];
           nextTime = nextAt.toTimeString().slice(0, 5);
           scheduleOneReminder(reminder, nextAt);

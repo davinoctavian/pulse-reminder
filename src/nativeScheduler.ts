@@ -5,6 +5,7 @@ interface NativeSchedulerPlugin {
     reminderName: string;
     reminderType: string;
     consecutiveTime: number;
+    snoozeTime: number;
     alarmFile: string;
     channelId: string;
     notificationId: number;

@@ -22,6 +22,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
   const [consecutiveTime, setConsecutiveTime] = useState(
     reminder?.consecutiveTime || 0,
   );
+  const [snoozeTime, setSnoozeTime] = useState(reminder?.snoozeTime || 5);
   const [alarmFile, setAlarmFile] = useState<string>(defaultAlarm);
   const [alarmFileName, setAlarmFileName] = useState<string>(
     reminder?.alarmFileName || platform === "web"
@@ -38,6 +39,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setDateReminder(reminder.startDate || "");
       setTimeReminder(reminder.startTime || "");
       setConsecutiveTime(reminder.consecutiveTime || 0);
+      setSnoozeTime(reminder.snoozeTime || 5);
       setAlarmFile(reminder.alarmFile || defaultAlarm);
       if (platform !== "web") {
         setAlarmFileName(reminder.alarmFileName || "defaultalarm.wav");
@@ -51,6 +53,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       setDateReminder("");
       setTimeReminder("");
       setConsecutiveTime(0);
+      setSnoozeTime(5);
       setAlarmFile(defaultAlarm);
       if (platform !== "web") {
         setAlarmFileName("defaultalarm.wav");
@@ -152,6 +155,7 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
         (document.getElementById("consecutive_time") as HTMLInputElement)
           ?.value || "0",
       ),
+      snoozeTime: snoozeTime,
       alarmFile,
       alarmFileName: alarmFileName || undefined,
       isRinging: false,
@@ -269,6 +273,15 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
             </div>
           </>
         )}
+        <div className="input-field col s12">
+          <input
+            id="snooze_time"
+            type="number"
+            value={snoozeTime || ""}
+            onChange={(e) => setSnoozeTime(parseInt(e.target.value) || 0)}
+          />
+          <label htmlFor="snooze_time">Snooze (minutes)</label>
+        </div>
       </div>
       <div className="modal-footer">
         <button
