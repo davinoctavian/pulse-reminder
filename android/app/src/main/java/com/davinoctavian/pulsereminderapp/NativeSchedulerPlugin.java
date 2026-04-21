@@ -1,9 +1,14 @@
 package com.davinoctavian.pulsereminderapp;
 
+import android.content.Context;
+
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+
+import java.util.Map;
+
 @CapacitorPlugin(name = "NativeScheduler")
 public class NativeSchedulerPlugin extends Plugin {
 
@@ -58,5 +63,18 @@ public class NativeSchedulerPlugin extends Plugin {
         int notificationId = call.getInt("notificationId", 0);
         NativeScheduler.cancel(getContext(), notificationId);
         call.resolve();
+    }
+
+    @PluginMethod
+    public void getScheduledTimes(PluginCall call) {
+        android.content.SharedPreferences prefs = getContext()
+            .getSharedPreferences("ReminderSchedule", Context.MODE_PRIVATE);
+        
+        com.getcapacitor.JSObject result = new com.getcapacitor.JSObject();
+        Map<String, ?> all = prefs.getAll();
+        for (Map.Entry<String, ?> entry : all.entrySet()) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+        call.resolve(result);
     }
 }

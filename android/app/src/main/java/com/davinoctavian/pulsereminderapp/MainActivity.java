@@ -52,7 +52,7 @@ public class MainActivity extends BridgeActivity {
         Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + rawSound);
 
         AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build();
 
@@ -63,8 +63,8 @@ public class MainActivity extends BridgeActivity {
         );
         channel.setDescription("Reminder notifications with sound");
         channel.setSound(soundUri, audioAttributes);
-        channel.enableVibration(true);
-        channel.setVibrationPattern(new long[]{0, 500, 500, 500});
+        channel.enableVibration(false);
+        channel.setBypassDnd(true);
 
         if (manager.getNotificationChannel(id) != null) {
             manager.deleteNotificationChannel(id);

@@ -14,6 +14,8 @@ import scheduleReminders, {
 import AlarmWorker from "./alarmWorker?worker";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
+import { App as CapApp } from "@capacitor/app";
+import NativeScheduler from "./nativeScheduler";
 
 const worker = new AlarmWorker();
 const platform = Capacitor.getPlatform();
@@ -155,6 +157,36 @@ function App() {
   useEffect(() => {
     if (platform !== "web") {
       initNotificationListeners(setReminders, ringingRef);
+      const syncScheduledTimes = async () => {
+        try {
+          const scheduled = await NativeScheduler.getScheduledTimes();
+          setReminders((prev) =>
+            prev.map((r) => {
+              const nextDate = scheduled[r.name + "_date"];
+              const nextTime = scheduled[r.name + "_time"];
+              if (nextDate && nextTime) {
+                return {
+                  ...r,
+                  startDate: nextDate,
+                  startTime: nextTime,
+                  isRinging: false,
+                };
+              }
+              return r;
+            }),
+          );
+        } catch (e) {
+          console.error("Failed to sync scheduled times", e);
+        }
+      };
+
+      // Sync on app resume (coming back from background)
+      CapApp.addListener("appStateChange", ({ isActive }) => {
+        if (isActive) syncScheduledTimes();
+      });
+
+      // Also sync immediately on mount
+      syncScheduledTimes();
       return;
     }
     worker.onmessage = (event) => {

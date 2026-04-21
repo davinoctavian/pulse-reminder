@@ -12,6 +12,7 @@ interface NativeSchedulerPlugin {
     triggerAtMillis: number;
   }): Promise<void>;
   cancel(options: { notificationId: number }): Promise<void>;
+  getScheduledTimes(): Promise<Record<string, string>>;
   addListener(
     eventName: "reminderUpdated",
     listenerFunc: (data: {

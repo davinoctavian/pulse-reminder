@@ -9,6 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 
 public class ReminderReceiver extends BroadcastReceiver {
 
@@ -29,12 +32,13 @@ public class ReminderReceiver extends BroadcastReceiver {
             // Cancel current notification
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             nm.cancel(notificationId);
+            stopVibration(context);
 
             // Reschedule after snoozeTime minutes
             long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
-            scheduleNext(context, reminderName, reminderType, consecutiveTime,
+            scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, snoozeAt);
-            notifyWebView(context, reminderName, snoozeAt);
+            saveScheduledTime(context, reminderName, snoozeAt);
             return;
         }
 
@@ -42,6 +46,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             // Cancel current notification
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             nm.cancel(notificationId);
+            stopVibration(context);
 
             // Reschedule based on type
             long nextTime;
@@ -53,15 +58,15 @@ public class ReminderReceiver extends BroadcastReceiver {
                         ? startTimeMillis + (24 * 60 * 60 * 1000L)
                         : System.currentTimeMillis() + (24 * 60 * 60 * 1000L);
             }
-            scheduleNext(context, reminderName, reminderType, consecutiveTime,
+            scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, nextTime);
-            notifyWebView(context, reminderName, nextTime);
+            saveScheduledTime(context, reminderName, nextTime);
             return;
         }
 
         // Default: show notification and auto-reschedule next occurrence
         showNotification(context, notificationId, reminderName, channelId,
-                reminderType, consecutiveTime, alarmFile, startTimeMillis);
+                reminderType, consecutiveTime, snoozeTime, alarmFile, startTimeMillis);
 
         // Reschedule next occurrence immediately so it survives ignore/dismiss
         long nextTime;
@@ -72,30 +77,73 @@ public class ReminderReceiver extends BroadcastReceiver {
                     ? startTimeMillis + (24 * 60 * 60 * 1000L)
                     : System.currentTimeMillis() + (24 * 60 * 60 * 1000L);
         }
-        scheduleNext(context, reminderName, reminderType, consecutiveTime,
+        startVibration(context);
+        scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
                 alarmFile, channelId, notificationId, nextTime);
-        notifyWebView(context, reminderName, nextTime);
+        saveScheduledTime(context, reminderName, nextTime);
+    }
+
+    private void startVibration(Context context) {
+        long[] pattern = {0, 800, 400, 800, 400, 800, 400};
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+
+            VibratorManager vm = (VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+            if (vm != null) {
+                Vibrator vibrator = vm.getDefaultVibrator();
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 1));
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Android 8-11
+            Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 1));
+            }
+        } else {
+            // Below Android 8
+            Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                vibrator.vibrate(pattern, 1);
+            }
+        }
+    }
+
+    private void stopVibration(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            VibratorManager vm = (VibratorManager) context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+            if (vm != null) vm.getDefaultVibrator().cancel();
+        } else {
+            Vibrator vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            if (vibrator != null) vibrator.cancel();
+        }
     }
 
     private void showNotification(Context context, int id, String reminderName,
-                                   String channelId, String reminderType,
-                                   int consecutiveTime, int snoozeTime, String alarmFile,
-                                   long startTimeMillis) {
-        NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                               String channelId, String reminderType,
+                               int consecutiveTime, int snoozeTime,
+                               String alarmFile, long startTimeMillis) {
 
         String resolvedChannelId = (channelId != null && !channelId.isEmpty())
-                ? channelId
-                : "ReminderDefault";
+                ? channelId : "ReminderDefault";
 
-        // Open app when notification tapped
-        Intent openIntent = new Intent(context, MainActivity.class);
-        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent pendingOpenIntent = PendingIntent.getActivity(
-                context, id, openIntent,
+        // Full screen intent — opens AlarmActivity over lock screen
+        Intent fullScreenIntent = new Intent(context, AlarmActivity.class);
+        fullScreenIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        fullScreenIntent.putExtra("reminderName", reminderName);
+        fullScreenIntent.putExtra("reminderType", reminderType);
+        fullScreenIntent.putExtra("consecutiveTime", consecutiveTime);
+        fullScreenIntent.putExtra("snoozeTime", snoozeTime);
+        fullScreenIntent.putExtra("alarmFile", alarmFile);
+        fullScreenIntent.putExtra("channelId", channelId);
+        fullScreenIntent.putExtra("notificationId", id);
+        fullScreenIntent.putExtra("startTimeMillis", startTimeMillis);
+
+        PendingIntent fullScreenPending = PendingIntent.getActivity(
+                context, id, fullScreenIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Snooze action
+        // Snooze action for notification shade
         Intent snoozeIntent = new Intent(context, ReminderReceiver.class);
         snoozeIntent.setAction("SNOOZE");
         snoozeIntent.putExtra("reminderName", reminderName);
@@ -111,7 +159,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Stop action
+        // Stop action for notification shade
         Intent stopIntent = new Intent(context, ReminderReceiver.class);
         stopIntent.setAction("STOP");
         stopIntent.putExtra("reminderName", reminderName);
@@ -127,14 +175,20 @@ public class ReminderReceiver extends BroadcastReceiver {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        NotificationManager nm = (NotificationManager)
+                context.getSystemService(Context.NOTIFICATION_SERVICE);
+
         Notification notification = new Notification.Builder(context, resolvedChannelId)
-                .setContentTitle("Reminder Alert")
-                .setContentText("Reminder: " + reminderName)
+                .setContentTitle("⏰  " + reminderName)
+                .setContentText("Tap to dismiss or snooze") 
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentIntent(pendingOpenIntent)
-                .setAutoCancel(true)
-                .addAction(0, "Snooze", snoozePending)
-                .addAction(0, "Stop", stopPending)
+                .setFullScreenIntent(fullScreenPending, true)  // ← key line
+                .setCategory(Notification.CATEGORY_ALARM)      // ← treated as alarm
+                .setPriority(Notification.PRIORITY_MAX)
+                .setAutoCancel(false)                          // ← stays until dismissed
+                .setOngoing(true)                              // ← can't be swiped away
+                .addAction(R.drawable.ic_snooze, "Snooze " + snoozeTime + " min", snoozePending)  // ← show snooze time
+                .addAction(R.drawable.ic_stop, "Stop", stopPending)
                 .build();
 
         nm.notify(id, notification);
@@ -182,5 +236,22 @@ public class ReminderReceiver extends BroadcastReceiver {
         androidx.localbroadcastmanager.content.LocalBroadcastManager
             .getInstance(context)
             .sendBroadcast(broadcast);
+    }
+
+    private void saveScheduledTime(Context context, String reminderName, long nextMillis) {
+        String nextDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(new java.util.Date(nextMillis));
+        String nextTime = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+            .format(new java.util.Date(nextMillis));
+
+        // Save to SharedPreferences so app can read it on next open
+        context.getSharedPreferences("ReminderSchedule", Context.MODE_PRIVATE)
+            .edit()
+            .putString(reminderName + "_date", nextDate)
+            .putString(reminderName + "_time", nextTime)
+            .apply();
+
+        // Also try broadcast for when app is in foreground
+        notifyWebView(context, reminderName, nextMillis);
     }
 }
