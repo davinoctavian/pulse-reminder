@@ -48,6 +48,7 @@ public class MainActivity extends BridgeActivity {
             startService(new Intent(this, ReminderForegroundService.class));
         }
     }
+
     private void createChannel(NotificationManager manager, String id, String name, int rawSound) {
         Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + rawSound);
 
@@ -70,6 +71,17 @@ public class MainActivity extends BridgeActivity {
             manager.deleteNotificationChannel(id);
         }
         manager.createNotificationChannel(channel);
+    }
+
+    @Override
+    public void onBackPressed() {
+        // If WebView can go back, let it
+        if (bridge != null && bridge.getWebView().canGoBack()) {
+            bridge.getWebView().goBack();
+        } else {
+            // Otherwise close the app normally
+            moveTaskToBack(true);
+        }
     }
 
 }

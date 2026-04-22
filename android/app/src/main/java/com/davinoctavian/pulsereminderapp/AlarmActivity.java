@@ -43,9 +43,7 @@ public class AlarmActivity extends Activity {
         } else {
             getWindow().addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             );
         }
 
@@ -85,6 +83,48 @@ public class AlarmActivity extends Activity {
         }
     }
 
+    @Override
+    public void onBackPressed() {
+        // Back button = snooze and close
+        handleSnooze();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // Called when MainActivity sends CLOSE signal
+        if (intent.getBooleanExtra("CLOSE", false)) {
+            stopAll();
+            finish();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Stop sound/vibration when user leaves but keep activity in stack
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+            mediaPlayer.pause();
+        }
+        stopVibration();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Resume when user comes back to AlarmActivity
+        if (mediaPlayer != null && !mediaPlayer.isPlaying()) {
+            mediaPlayer.start();
+        }
+        startVibration();
+    }
+
+    @Override
+    protected void onDestroy() {
+        stopAll();
+        super.onDestroy();
+    }
+
     private void playAlarm() {
         try {
             Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/raw/" +
@@ -104,39 +144,58 @@ public class AlarmActivity extends Activity {
     }
 
     private void startVibration() {
-        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            VibratorManager vm = (VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
+            if (vm != null) {
+                vibrator = vm.getDefaultVibrator();
+            }
+        } else {
+            vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        }
+
         if (vibrator == null || !vibrator.hasVibrator()) return;
 
-        // 500ms on, 500ms off, repeat
         long[] pattern = {0, 800, 400, 800, 400, 800, 400};
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 1)); // 1 = repeat from index 1
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 1));
         } else {
             vibrator.vibrate(pattern, 1);
         }
     }
 
-    private void stopAll() {
-        if (mediaPlayer != null) {
-            mediaPlayer.stop();
-            mediaPlayer.release();
-            mediaPlayer = null;
-        }
+    private void stopVibration() {
         if (vibrator != null) {
             vibrator.cancel();
             vibrator = null;
         }
-        // Dismiss the notification
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            VibratorManager vm = (VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE);
-            if (vm != null) vm.getDefaultVibrator().cancel();
-        } else {
-            Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-            if (v != null) v.cancel();
+    }
+
+    private void stopAll() {
+        if (mediaPlayer != null) {
+            try {
+                if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+                mediaPlayer.release();
+            } catch (Exception e) {
+                android.util.Log.e("AlarmActivity", "MediaPlayer stop error: " + e.getMessage());
+            }
+            mediaPlayer = null;
         }
+        stopVibration();
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(notificationId);
+    }
+
+    private void broadcastUpdate(long nextMillis) {
+        String nextDate = new java.text.SimpleDateFormat("yyyy-MM-dd",
+            java.util.Locale.getDefault()).format(new java.util.Date(nextMillis));
+        String nextTime = new java.text.SimpleDateFormat("HH:mm",
+            java.util.Locale.getDefault()).format(new java.util.Date(nextMillis));
+
+        Intent broadcast = new Intent("REMINDER_UPDATED");
+        broadcast.putExtra("reminderName", reminderName);
+        broadcast.putExtra("nextDate", nextDate);
+        broadcast.putExtra("nextTime", nextTime);
+        sendBroadcast(broadcast);
     }
 
     private void handleSnooze() {
@@ -144,15 +203,11 @@ public class AlarmActivity extends Activity {
         long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
         NativeScheduler.schedule(this, reminderName, reminderType, consecutiveTime,
             snoozeTime, alarmFile, channelId, notificationId, snoozeAt);
-
-        // Notify WebView
-        Intent broadcast = new Intent("REMINDER_UPDATED");
-        broadcast.putExtra("reminderName", reminderName);
-        broadcast.putExtra("nextDate", new java.text.SimpleDateFormat("yyyy-MM-dd",
-            java.util.Locale.getDefault()).format(new java.util.Date(snoozeAt)));
-        broadcast.putExtra("nextTime", new java.text.SimpleDateFormat("HH:mm",
-            java.util.Locale.getDefault()).format(new java.util.Date(snoozeAt)));
-        sendBroadcast(broadcast);
+        broadcastUpdate(snoozeAt);
+        // Go back to MainActivity instead of just finishing
+        Intent mainIntent = new Intent(this, MainActivity.class);
+        mainIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(mainIntent);
         finish();
     }
 
@@ -168,20 +223,11 @@ public class AlarmActivity extends Activity {
         }
         NativeScheduler.schedule(this, reminderName, reminderType, consecutiveTime,
             snoozeTime, alarmFile, channelId, notificationId, nextAt);
-
-        Intent broadcast = new Intent("REMINDER_UPDATED");
-        broadcast.putExtra("reminderName", reminderName);
-        broadcast.putExtra("nextDate", new java.text.SimpleDateFormat("yyyy-MM-dd",
-            java.util.Locale.getDefault()).format(new java.util.Date(nextAt)));
-        broadcast.putExtra("nextTime", new java.text.SimpleDateFormat("HH:mm",
-            java.util.Locale.getDefault()).format(new java.util.Date(nextAt)));
-        sendBroadcast(broadcast);
+        broadcastUpdate(nextAt);
+        // Go back to MainActivity instead of just finishing
+        Intent mainIntent = new Intent(this, MainActivity.class);
+        mainIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(mainIntent);
         finish();
-    }
-
-    @Override
-    protected void onDestroy() {
-        stopAll();
-        super.onDestroy();
     }
 }
