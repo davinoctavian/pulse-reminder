@@ -203,6 +203,7 @@ public class AlarmActivity extends Activity {
         long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
         NativeScheduler.schedule(this, reminderName, reminderType, consecutiveTime,
             snoozeTime, alarmFile, channelId, notificationId, snoozeAt);
+        saveHistory("snoozed");
         broadcastUpdate(snoozeAt);
         // Go back to MainActivity instead of just finishing
         Intent mainIntent = new Intent(this, MainActivity.class);
@@ -223,11 +224,34 @@ public class AlarmActivity extends Activity {
         }
         NativeScheduler.schedule(this, reminderName, reminderType, consecutiveTime,
             snoozeTime, alarmFile, channelId, notificationId, nextAt);
+        saveHistory("stopped");
         broadcastUpdate(nextAt);
         // Go back to MainActivity instead of just finishing
         Intent mainIntent = new Intent(this, MainActivity.class);
         mainIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(mainIntent);
         finish();
+    }
+
+    private void saveHistory(String status) {
+        android.content.SharedPreferences ringPrefs = getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE);
+        long ringTime = ringPrefs.getLong(reminderName, System.currentTimeMillis());
+        long offTime = System.currentTimeMillis();
+
+        android.content.SharedPreferences histPrefs = getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE);
+        String existing = histPrefs.getString("entries", "[]");
+        try {
+            org.json.JSONArray array = new org.json.JSONArray(existing);
+            org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("reminderName", reminderName);
+            entry.put("status", status);
+            entry.put("ringTime", ringTime);
+            entry.put("offTime", offTime);
+            if (array.length() >= 100) array.remove(0);
+            array.put(entry);
+            histPrefs.edit().putString("entries", array.toString()).apply();
+        } catch (Exception e) {
+            android.util.Log.e("AlarmActivity", "History save failed: " + e.getMessage());
+        }
     }
 }

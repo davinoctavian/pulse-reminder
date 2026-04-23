@@ -172,130 +172,145 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
   );
 
   return (
-    <div id="setting-modal" className="modal">
-      <div className="modal-content">
-        <h4 className="color-dark mb-40">Set Reminder</h4>
-        <div className="input-field col s12">
-          <input
-            id="reminder_name"
-            type="text"
-            value={reminderName}
-            onChange={(e) => setReminderName(e.target.value)}
-          />
-          <label htmlFor="reminder_name">Name</label>
+    <div id="setting-modal" className="modal modal-fixed-footer">
+      <div className="modal-content" style={{ padding: 0 }}>
+        <div className="cyan darken-1" style={{ padding: "20px 24px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <i
+              className="material-icons white-text"
+              style={{ fontSize: "28px" }}
+            >
+              access_alarm
+            </i>
+            <div>
+              <h5 className="white-text" style={{ margin: 0, fontWeight: 600 }}>
+                Set Reminder
+              </h5>
+            </div>
+          </div>
         </div>
-        <ReminderTypeSelect
-          reminderType={reminderType}
-          setReminderType={setReminderType}
-        />
-        <div className="file-field input-field col s12">
-          {platform === "web" && (
-            <>
-              <div className="btn">
-                <span>Alarm Sound</span>
-                <input
-                  type="file"
-                  accept="audio/*"
-                  onChange={async (e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      const file = e.target.files[0];
-                      const base64 = await useFileToBase64(file);
-                      setAlarmFile(base64);
-                      setAlarmFileName(file.name);
-                    } else {
-                      setAlarmFile(defaultAlarm);
-                      setAlarmFileName("Default Alarm");
-                    }
-                  }}
-                />
+        <div style={{ minHeight: "200px", padding: "20px 24px" }}>
+          <div className="input-field col s12">
+            <input
+              id="reminder_name"
+              type="text"
+              value={reminderName}
+              onChange={(e) => setReminderName(e.target.value)}
+            />
+            <label htmlFor="reminder_name">Name</label>
+          </div>
+          <ReminderTypeSelect
+            reminderType={reminderType}
+            setReminderType={setReminderType}
+          />
+          <div className="file-field input-field col s12">
+            {platform === "web" && (
+              <>
+                <div className="btn">
+                  <span>Alarm Sound</span>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={async (e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        const base64 = await useFileToBase64(file);
+                        setAlarmFile(base64);
+                        setAlarmFileName(file.name);
+                      } else {
+                        setAlarmFile(defaultAlarm);
+                        setAlarmFileName("Default Alarm");
+                      }
+                    }}
+                  />
+                </div>
+                <div className="file-path-wrapper">
+                  <input
+                    name="alarm_file"
+                    className="file-path validate"
+                    type="text"
+                    readOnly
+                    value={alarmFileName || ""}
+                    placeholder="No file chosen"
+                  />
+                </div>
+              </>
+            )}
+            {platform !== "web" && (
+              <div className="input-field col s12">
+                <select
+                  value={alarmFileName}
+                  onChange={(e) => setAlarmFileName(e.target.value)}
+                >
+                  <option value="defaultalarm.wav">Default</option>
+                  <option value="mealtime.wav">Meal Time</option>
+                  <option value="changediapers.wav">Diapers Change</option>
+                  <option value="takemedicine.wav">Medicine Time</option>
+                </select>
+                <label>Alarm Sound</label>
               </div>
-              <div className="file-path-wrapper">
+            )}
+          </div>
+
+          {reminderType === "consecutive" && (
+            <ConsecutiveSettings
+              consecutiveBase={consecutiveBase}
+              consecutiveTime={consecutiveTime}
+              startDate={dateReminder}
+              startTime={timeReminder}
+              setConsecutiveBase={setConsecutiveBase}
+              setConsecutiveTime={setConsecutiveTime}
+              setDateReminder={setDateReminder}
+              setTimeReminder={setTimeReminder}
+            />
+          )}
+          {reminderType === "date" && (
+            <>
+              <div className="input-field col s12">
                 <input
-                  name="alarm_file"
-                  className="file-path validate"
+                  id="date_reminder"
                   type="text"
-                  readOnly
-                  value={alarmFileName || ""}
-                  placeholder="No file chosen"
+                  className="datepicker"
+                  value={dateReminder}
+                  onChange={(e) => setDateReminder(e.target.value)}
                 />
+                <label htmlFor="date_reminder">Date</label>
+              </div>
+              <div className="input-field col s12">
+                <input
+                  id="time_reminder"
+                  type="text"
+                  className="timepicker"
+                  value={timeReminder}
+                  onChange={(e) => setTimeReminder(e.target.value)}
+                />
+                <label htmlFor="time_reminder">Time</label>
               </div>
             </>
           )}
-          {platform !== "web" && (
-            <div className="input-field col s12">
-              <select
-                value={alarmFileName}
-                onChange={(e) => setAlarmFileName(e.target.value)}
-              >
-                <option value="defaultalarm.wav">Default</option>
-                <option value="mealtime.wav">Meal Time</option>
-                <option value="changediapers.wav">Diapers Change</option>
-                <option value="takemedicine.wav">Medicine Time</option>
-              </select>
-              <label>Alarm Sound</label>
-            </div>
-          )}
-        </div>
-
-        {reminderType === "consecutive" && (
-          <ConsecutiveSettings
-            consecutiveBase={consecutiveBase}
-            consecutiveTime={consecutiveTime}
-            startDate={dateReminder}
-            startTime={timeReminder}
-            setConsecutiveBase={setConsecutiveBase}
-            setConsecutiveTime={setConsecutiveTime}
-            setDateReminder={setDateReminder}
-            setTimeReminder={setTimeReminder}
-          />
-        )}
-        {reminderType === "date" && (
-          <>
-            <div className="input-field col s12">
-              <input
-                id="date_reminder"
-                type="text"
-                className="datepicker"
-                value={dateReminder}
-                onChange={(e) => setDateReminder(e.target.value)}
-              />
-              <label htmlFor="date_reminder">Date</label>
-            </div>
-            <div className="input-field col s12">
-              <input
-                id="time_reminder"
-                type="text"
-                className="timepicker"
-                value={timeReminder}
-                onChange={(e) => setTimeReminder(e.target.value)}
-              />
-              <label htmlFor="time_reminder">Time</label>
-            </div>
-          </>
-        )}
-        <div className="input-field col s12">
-          <input
-            id="snooze_time"
-            type="number"
-            value={snoozeTime || ""}
-            onChange={(e) => setSnoozeTime(parseInt(e.target.value) || 0)}
-          />
-          <label htmlFor="snooze_time">Snooze (minutes)</label>
+          <div className="input-field col s12">
+            <input
+              id="snooze_time"
+              type="number"
+              value={snoozeTime || ""}
+              onChange={(e) => setSnoozeTime(parseInt(e.target.value) || 0)}
+            />
+            <label htmlFor="snooze_time">Snooze (minutes)</label>
+          </div>
         </div>
       </div>
       <div className="modal-footer">
-        <button
+        <a
+          href="#!"
+          className={`modal-close btn-flat green-text ${!isValid ? "disabled" : ""}`}
           onClick={handleSave}
-          className={`modal-close waves-effect waves-light btn green ${
-            !isValid ? "disabled" : ""
-          }`}
-          disabled={!isValid}
         >
+          <i className="material-icons left">save</i>
           Save
-        </button>
-        <button className="modal-close waves-effect waves-light btn red lighten-1">
+        </a>
+        <a href="#!" className="modal-close btn-flat cyan-text">
           Close
-        </button>
+        </a>
       </div>
     </div>
   );

@@ -26,6 +26,9 @@ public class ReminderReceiver extends BroadcastReceiver {
         String channelId      = intent.getStringExtra("channelId");
         int notificationId    = intent.getIntExtra("notificationId", 0);
         long startTimeMillis  = intent.getLongExtra("startTimeMillis", -1);
+        
+        context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
+            .edit().putLong(reminderName, System.currentTimeMillis()).apply();
 
         if ("SNOOZE".equals(action)) {
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -36,6 +39,9 @@ public class ReminderReceiver extends BroadcastReceiver {
             scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, snoozeAt);
             saveScheduledTime(context, reminderName, snoozeAt);
+            long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
+                .getLong(reminderName, System.currentTimeMillis());
+            saveHistory(context, reminderName, "snoozed", ringTime, System.currentTimeMillis());
             return;
         }
 
@@ -55,6 +61,9 @@ public class ReminderReceiver extends BroadcastReceiver {
             scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, nextTime);
             saveScheduledTime(context, reminderName, nextTime);
+            long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
+                .getLong(reminderName, System.currentTimeMillis());
+            saveHistory(context, reminderName, "stopped", ringTime, System.currentTimeMillis());
             return;
         }
 
@@ -63,6 +72,9 @@ public class ReminderReceiver extends BroadcastReceiver {
             stopVibration(context);
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.cancel(notificationId);
+            long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
+                .getLong(reminderName, System.currentTimeMillis());
+            saveHistory(context, reminderName, "dismissed", ringTime, System.currentTimeMillis());
             return;
         }
 
@@ -258,5 +270,26 @@ public class ReminderReceiver extends BroadcastReceiver {
         broadcast.putExtra("nextDate", nextDate);
         broadcast.putExtra("nextTime", nextTime);
         context.sendBroadcast(broadcast);
+    }
+
+    private void saveHistory(Context context, String reminderName, 
+                          String status, long ringTime, long offTime) {
+        android.content.SharedPreferences prefs = context
+            .getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE);
+        String existing = prefs.getString("entries", "[]");
+        try {
+            org.json.JSONArray array = new org.json.JSONArray(existing);
+            org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("reminderName", reminderName);
+            entry.put("status", status);       // "snoozed", "stopped", "dismissed"
+            entry.put("ringTime", ringTime);   // when alarm fired
+            entry.put("offTime", offTime);     // when user acted
+            // Keep max 100 entries
+            if (array.length() >= 100) array.remove(0);
+            array.put(entry);
+            prefs.edit().putString("entries", array.toString()).apply();
+        } catch (org.json.JSONException e) {
+            android.util.Log.e("ReminderReceiver", "History save failed: " + e.getMessage());
+        }
     }
 }

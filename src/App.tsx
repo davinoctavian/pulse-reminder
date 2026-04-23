@@ -16,6 +16,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
 import NativeScheduler from "./nativeScheduler";
+import { addHistory } from "./services/HistoryService";
 
 const worker = new AlarmWorker();
 const platform = Capacitor.getPlatform();
@@ -45,9 +46,9 @@ function App() {
     number | null
   >(null);
 
-  // Track which reminder names are currently ringing so we
-  // can skip re-scheduling when only isRinging changes
   const ringingRef = useRef<Set<string>>(new Set());
+  // Track ring start times for web history
+  const ringStartRef = useRef<Record<string, number>>({});
 
   const stopAlarmSound = () => {
     if (alarmAudio) {
@@ -58,13 +59,24 @@ function App() {
   };
 
   const handleSaveReminder = (newReminder: Reminder) => {
-    if (selectedReminderIndex !== null) {
+    const isUpdate = selectedReminderIndex !== null;
+
+    if (isUpdate) {
       setReminders((prev) =>
         prev.map((r, i) => (i === selectedReminderIndex ? newReminder : r)),
       );
     } else {
       setReminders((prev) => [...prev, newReminder]);
     }
+
+    const now = Date.now();
+    addHistory({
+      reminderName: newReminder.name,
+      status: isUpdate ? "updated" : "created",
+      ringTime: now,
+      offTime: now,
+    });
+
     setSelectedReminderIndex(null);
   };
 
@@ -96,8 +108,20 @@ function App() {
     ringingRef.current.delete(reminder.name);
 
     if (platform !== "web") {
-      // Override the auto-rescheduled alarm from ReminderReceiver with snooze time
       scheduleOneReminder(snoozedReminder, snoozeAt);
+    } else {
+      // Save history for web
+      const ringTime = ringStartRef.current[reminder.name] ?? Date.now();
+      addHistory({
+        reminderName: reminder.name,
+        status: "snoozed",
+        ringTime,
+        offTime: Date.now(),
+      });
+      delete ringStartRef.current[reminder.name];
+
+      // Tell worker about snooze for its own history tracking
+      worker.postMessage({ type: "SNOOZE", payload: { name: reminder.name } });
     }
 
     setReminders((prev) => {
@@ -139,8 +163,19 @@ function App() {
     ringingRef.current.delete(reminder.name);
 
     if (platform !== "web") {
-      // Override auto-rescheduled alarm with correct next time
       scheduleOneReminder(stoppedReminder, nextAt);
+    } else {
+      // Save history for web
+      const ringTime = ringStartRef.current[reminder.name] ?? Date.now();
+      addHistory({
+        reminderName: reminder.name,
+        status: "stopped",
+        ringTime,
+        offTime: Date.now(),
+      });
+      delete ringStartRef.current[reminder.name];
+
+      worker.postMessage({ type: "STOP", payload: { name: reminder.name } });
     }
 
     setReminders((prev) => {
@@ -157,6 +192,7 @@ function App() {
   useEffect(() => {
     if (platform !== "web") {
       initNotificationListeners(setReminders, ringingRef);
+
       const syncScheduledTimes = async () => {
         try {
           const scheduled = await NativeScheduler.getScheduledTimes();
@@ -180,21 +216,33 @@ function App() {
         }
       };
 
-      // Sync on app resume (coming back from background)
       CapApp.addListener("appStateChange", ({ isActive }) => {
         if (isActive) syncScheduledTimes();
       });
 
-      // Also sync immediately on mount
       syncScheduledTimes();
       return;
     }
+
+    // Web worker message handler
     worker.onmessage = (event) => {
       const { type, payload } = event.data;
       if (type === "TRIGGER_ALARM") {
+        // Track ring start time
+        ringStartRef.current[payload.name] = Date.now();
+
+        // Update reminder state with next scheduled time
         setReminders((prev) =>
-          prev.map((r) => (r.name === payload.name ? { ...r, ...payload } : r)),
+          prev.map((r) =>
+            r.name === payload.name
+              ? {
+                  ...r,
+                  isRinging: true,
+                }
+              : r,
+          ),
         );
+
         if (Notification.permission === "granted") {
           const notification = new Notification("Reminder Alert", {
             body: `Reminder: ${payload.name}`,
@@ -229,14 +277,12 @@ function App() {
     });
   }, []);
 
-  // Only reschedule when reminders actually change (not just isRinging toggling)
   useEffect(() => {
     if (platform === "web") {
       worker.postMessage({ type: "SET_REMINDERS", payload: reminders });
       return;
     }
 
-    // Skip if the only change was isRinging flipping — ReminderReceiver handles that
     const hasNonRingingChange = reminders.some(
       (r) => !ringingRef.current.has(r.name) || !r.isRinging,
     );

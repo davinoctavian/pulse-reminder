@@ -77,4 +77,47 @@ public class NativeSchedulerPlugin extends Plugin {
         }
         call.resolve(result);
     }
+
+    @PluginMethod
+    public void getHistory(PluginCall call) {
+        android.content.SharedPreferences prefs = getContext()
+            .getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE);
+        String json = prefs.getString("entries", "[]");
+        com.getcapacitor.JSObject result = new com.getcapacitor.JSObject();
+        result.put("entries", json);
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void clearHistory(PluginCall call) {
+        getContext().getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE)
+            .edit().remove("entries").apply();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void saveHistory(PluginCall call) {
+        String reminderName = call.getString("reminderName", "");
+        String status = call.getString("status", "created");
+        long ringTime = call.getLong("ringTime", System.currentTimeMillis());
+        long offTime = call.getLong("offTime", System.currentTimeMillis());
+
+        android.content.SharedPreferences prefs = getContext()
+            .getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE);
+        String existing = prefs.getString("entries", "[]");
+        try {
+            org.json.JSONArray array = new org.json.JSONArray(existing);
+            org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("reminderName", reminderName);
+            entry.put("status", status);
+            entry.put("ringTime", ringTime);
+            entry.put("offTime", offTime);
+            if (array.length() >= 100) array.remove(0);
+            array.put(entry);
+            prefs.edit().putString("entries", array.toString()).apply();
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Failed to save history: " + e.getMessage());
+        }
+    }
 }
