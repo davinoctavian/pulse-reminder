@@ -21,6 +21,7 @@ public class AlarmActivity extends Activity {
 
     private MediaPlayer mediaPlayer;
     private Vibrator vibrator;
+    private String reminderId;
     private String reminderName;
     private String reminderType;
     private int consecutiveTime;
@@ -51,6 +52,7 @@ public class AlarmActivity extends Activity {
 
         // Read intent extras
         Intent intent = getIntent();
+        reminderId      = intent.getStringExtra("reminderId");
         reminderName    = intent.getStringExtra("reminderName");
         reminderType    = intent.getStringExtra("reminderType");
         consecutiveTime = intent.getIntExtra("consecutiveTime", 0);
@@ -192,6 +194,7 @@ public class AlarmActivity extends Activity {
             java.util.Locale.getDefault()).format(new java.util.Date(nextMillis));
 
         Intent broadcast = new Intent("REMINDER_UPDATED");
+        broadcast.putExtra("reminderId", reminderId);
         broadcast.putExtra("reminderName", reminderName);
         broadcast.putExtra("nextDate", nextDate);
         broadcast.putExtra("nextTime", nextTime);
@@ -201,7 +204,7 @@ public class AlarmActivity extends Activity {
     private void handleSnooze() {
         stopAll();
         long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
-        NativeScheduler.schedule(this, reminderName, reminderType, consecutiveTime,
+        NativeScheduler.schedule(this, reminderId, reminderName, reminderType, consecutiveTime,
             snoozeTime, alarmFile, channelId, notificationId, snoozeAt);
         saveHistory("snoozed");
         broadcastUpdate(snoozeAt);
@@ -222,7 +225,7 @@ public class AlarmActivity extends Activity {
                 ? startTimeMillis + (24 * 60 * 60 * 1000L)
                 : System.currentTimeMillis() + (24 * 60 * 60 * 1000L);
         }
-        NativeScheduler.schedule(this, reminderName, reminderType, consecutiveTime,
+        NativeScheduler.schedule(this, reminderId, reminderName, reminderType, consecutiveTime,
             snoozeTime, alarmFile, channelId, notificationId, nextAt);
         saveHistory("stopped");
         broadcastUpdate(nextAt);
@@ -243,6 +246,7 @@ public class AlarmActivity extends Activity {
         try {
             org.json.JSONArray array = new org.json.JSONArray(existing);
             org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("reminderId", reminderId);
             entry.put("reminderName", reminderName);
             entry.put("status", status);
             entry.put("ringTime", ringTime);

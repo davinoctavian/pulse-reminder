@@ -44,7 +44,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
             scheduleNext(context, reminderId, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, snoozeAt);
-            saveScheduledTime(context, reminderName, snoozeAt);
+            saveScheduledTime(context, reminderId, reminderName, snoozeAt);
             return;
         }
 
@@ -67,7 +67,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             }
             scheduleNext(context, reminderId, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, nextTime);
-            saveScheduledTime(context, reminderName, nextTime);
+            saveScheduledTime(context, reminderId, reminderName, nextTime);
             return;
         }
 
@@ -102,7 +102,7 @@ public class ReminderReceiver extends BroadcastReceiver {
 
         scheduleNext(context, reminderId, reminderName, reminderType, consecutiveTime, snoozeTime,
                 alarmFile, channelId, notificationId, nextTime);
-        saveScheduledTime(context, reminderName, nextTime);
+        saveScheduledTime(context, reminderId, reminderName, nextTime);
     }
 
     private void startVibration(Context context) {
@@ -256,7 +256,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         }
     }
 
-    private void saveScheduledTime(Context context, String reminderName, long nextMillis) {
+    private void saveScheduledTime(Context context, String reminderId, String reminderName, long nextMillis) {
         String nextDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                 .format(new java.util.Date(nextMillis));
         String nextTime = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
