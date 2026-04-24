@@ -1,4 +1,5 @@
 export interface Reminder {
+  reminderId: string;
   name: string;
   type: string;
   base?: string;

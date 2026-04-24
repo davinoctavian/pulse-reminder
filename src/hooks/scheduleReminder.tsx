@@ -36,6 +36,7 @@ export async function scheduleOneReminder(reminder: Reminder, at: Date) {
   const id = getNotificationId(reminder.name);
   await NativeScheduler.cancel({ notificationId: id });
   await NativeScheduler.schedule({
+    reminderId: String(id),
     reminderName: reminder.name,
     reminderType: reminder.type,
     consecutiveTime: reminder.consecutiveTime ?? 0,

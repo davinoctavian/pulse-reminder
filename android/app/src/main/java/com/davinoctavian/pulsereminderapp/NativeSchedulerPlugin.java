@@ -41,6 +41,7 @@ public class NativeSchedulerPlugin extends Plugin {
 
     @PluginMethod
     public void schedule(PluginCall call) {
+        String reminderId = call.getString("reminderId", "");
         String reminderName = call.getString("reminderName", "");
         String reminderType = call.getString("reminderType", "date");
         int consecutiveTime = call.getInt("consecutiveTime", 0);
@@ -51,7 +52,7 @@ public class NativeSchedulerPlugin extends Plugin {
         long triggerAtMillis = call.getLong("triggerAtMillis", 0L);
 
         NativeScheduler.schedule(
-            getContext(), reminderName, reminderType,
+            getContext(), reminderId,reminderName, reminderType,
             consecutiveTime, snoozeTime, alarmFile, channelId,
             notificationId, triggerAtMillis
         );
@@ -97,10 +98,12 @@ public class NativeSchedulerPlugin extends Plugin {
 
     @PluginMethod
     public void saveHistory(PluginCall call) {
+        String reminderId = call.getString("reminderId", "");
         String reminderName = call.getString("reminderName", "");
         String status = call.getString("status", "created");
         long ringTime = call.getLong("ringTime", System.currentTimeMillis());
         long offTime = call.getLong("offTime", System.currentTimeMillis());
+        String detail = call.getString("detail", "");
 
         android.content.SharedPreferences prefs = getContext()
             .getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE);
@@ -108,10 +111,12 @@ public class NativeSchedulerPlugin extends Plugin {
         try {
             org.json.JSONArray array = new org.json.JSONArray(existing);
             org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("reminderId", reminderId);
             entry.put("reminderName", reminderName);
             entry.put("status", status);
             entry.put("ringTime", ringTime);
             entry.put("offTime", offTime);
+            entry.put("detail", detail);
             if (array.length() >= 100) array.remove(0);
             array.put(entry);
             prefs.edit().putString("entries", array.toString()).apply();

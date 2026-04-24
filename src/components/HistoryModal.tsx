@@ -8,6 +8,7 @@ import {
 } from "../services/HistoryService";
 
 interface HistoryModalProps {
+  reminderId: string;
   reminderName: string;
 }
 
@@ -46,12 +47,12 @@ const statusConfig: Record<
   updated: { icon: "edit", color: "blue", label: "Updated" },
 };
 
-function HistoryModal({ reminderName }: HistoryModalProps) {
+function HistoryModal({ reminderId, reminderName }: HistoryModalProps) {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const modalInstanceRef = useRef<M.Modal | null>(null);
-  const modalId = `history-modal-${reminderName.replace(/\s+/g, "-")}`;
+  const modalId = `history-modal-${reminderId}`;
 
   // Initialize Materialize modal on mount and re-init when needed
   useEffect(() => {
@@ -70,7 +71,7 @@ function HistoryModal({ reminderName }: HistoryModalProps) {
     setLoading(true);
     try {
       const all = await getHistory();
-      setEntries(getHistoryForReminder(all, reminderName));
+      setEntries(getHistoryForReminder(all, reminderId));
     } catch (e) {
       console.error("Failed to load history", e);
     } finally {
@@ -242,6 +243,8 @@ function HistoryModal({ reminderName }: HistoryModalProps) {
                               style={{ fontSize: "11px" }}
                             >
                               {formatDate(entry.ringTime)}
+                              <br />
+                              {formatTime(entry.ringTime)}
                             </span>
                           </div>
                           <div
@@ -256,21 +259,40 @@ function HistoryModal({ reminderName }: HistoryModalProps) {
                                 className="grey-text"
                                 style={{ fontSize: "11px" }}
                               >
-                                {isAction ? "Started" : "At"}
+                                {isAction ? "Started" : "Details"}
                               </span>
-                              <p
-                                className="black-text"
-                                style={{
-                                  margin: 0,
-                                  fontSize: "13px",
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {formatTime(entry.ringTime)}
-                              </p>
                             </div>
+                            {!isAction && entry.detail && (
+                              <div style={{ marginTop: "6px" }}>
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    fontSize: "12px",
+                                    color: "#555",
+                                    wordBreak: "break-word",
+                                    lineHeight: "1.5",
+                                  }}
+                                >
+                                  {entry.detail.split(", ").map((change, j) => (
+                                    <span key={j} style={{ display: "block" }}>
+                                      • {change}
+                                    </span>
+                                  ))}
+                                </p>
+                              </div>
+                            )}
                             {isAction && (
                               <>
+                                <p
+                                  className="black-text"
+                                  style={{
+                                    margin: 0,
+                                    fontSize: "13px",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {formatTime(entry.ringTime)}
+                                </p>
                                 <div>
                                   <span
                                     className="grey-text"

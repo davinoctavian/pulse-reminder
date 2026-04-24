@@ -2,10 +2,12 @@ import { Capacitor } from "@capacitor/core";
 import NativeScheduler from "../nativeScheduler";
 
 export interface HistoryEntry {
+  reminderId: string;
   reminderName: string;
   status: "snoozed" | "stopped" | "dismissed" | "created" | "updated";
   ringTime: number;
   offTime: number;
+  detail?: string;
 }
 
 const platform = Capacitor.getPlatform();
@@ -33,10 +35,12 @@ export async function addHistory(entry: HistoryEntry): Promise<void> {
   if (platform !== "web") {
     try {
       await NativeScheduler.saveHistory({
+        reminderId: entry.reminderId,
         reminderName: entry.reminderName,
         status: entry.status,
         ringTime: entry.ringTime,
         offTime: entry.offTime,
+        detail: entry.detail ?? "",
       });
     } catch (e) {
       console.error("Failed to save history on Android", e);
@@ -68,7 +72,7 @@ export async function clearHistory(): Promise<void> {
 
 export function getHistoryForReminder(
   all: HistoryEntry[],
-  reminderName: string,
+  reminderId: string,
 ): HistoryEntry[] {
-  return all.filter((e) => e.reminderName === reminderName).reverse();
+  return all.filter((e) => e.reminderId === reminderId).reverse();
 }

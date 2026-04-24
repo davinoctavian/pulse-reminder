@@ -18,6 +18,7 @@ public class ReminderReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
 
+        String reminderId     = intent.getStringExtra("reminderId");
         String reminderName   = intent.getStringExtra("reminderName");
         String reminderType   = intent.getStringExtra("reminderType");
         int consecutiveTime   = intent.getIntExtra("consecutiveTime", 0);
@@ -26,22 +27,24 @@ public class ReminderReceiver extends BroadcastReceiver {
         String channelId      = intent.getStringExtra("channelId");
         int notificationId    = intent.getIntExtra("notificationId", 0);
         long startTimeMillis  = intent.getLongExtra("startTimeMillis", -1);
-        
-        context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
-            .edit().putLong(reminderName, System.currentTimeMillis()).apply();
+
+        if (reminderId == null || reminderId.isEmpty()) {
+            reminderId = String.valueOf(notificationId);
+        }
 
         if ("SNOOZE".equals(action)) {
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.cancel(notificationId);
             stopVibration(context);
 
-            long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
-            scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
-                    alarmFile, channelId, notificationId, snoozeAt);
-            saveScheduledTime(context, reminderName, snoozeAt);
             long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
                 .getLong(reminderName, System.currentTimeMillis());
-            saveHistory(context, reminderName, "snoozed", ringTime, System.currentTimeMillis());
+            saveHistory(context, reminderId, reminderName, "snoozed", ringTime, System.currentTimeMillis());
+
+            long snoozeAt = System.currentTimeMillis() + (snoozeTime * 60 * 1000L);
+            scheduleNext(context, reminderId, reminderName, reminderType, consecutiveTime, snoozeTime,
+                    alarmFile, channelId, notificationId, snoozeAt);
+            saveScheduledTime(context, reminderName, snoozeAt);
             return;
         }
 
@@ -49,6 +52,10 @@ public class ReminderReceiver extends BroadcastReceiver {
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.cancel(notificationId);
             stopVibration(context);
+
+            long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
+                .getLong(reminderName, System.currentTimeMillis());
+            saveHistory(context, reminderId, reminderName, "stopped", ringTime, System.currentTimeMillis());
 
             long nextTime;
             if ("consecutive".equals(reminderType) && consecutiveTime > 0) {
@@ -58,12 +65,9 @@ public class ReminderReceiver extends BroadcastReceiver {
                         ? startTimeMillis + (24 * 60 * 60 * 1000L)
                         : System.currentTimeMillis() + (24 * 60 * 60 * 1000L);
             }
-            scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
+            scheduleNext(context, reminderId, reminderName, reminderType, consecutiveTime, snoozeTime,
                     alarmFile, channelId, notificationId, nextTime);
             saveScheduledTime(context, reminderName, nextTime);
-            long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
-                .getLong(reminderName, System.currentTimeMillis());
-            saveHistory(context, reminderName, "stopped", ringTime, System.currentTimeMillis());
             return;
         }
 
@@ -74,12 +78,15 @@ public class ReminderReceiver extends BroadcastReceiver {
             if (nm != null) nm.cancel(notificationId);
             long ringTime = context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
                 .getLong(reminderName, System.currentTimeMillis());
-            saveHistory(context, reminderName, "dismissed", ringTime, System.currentTimeMillis());
+            saveHistory(context, reminderId, reminderName, "dismissed", ringTime, System.currentTimeMillis());
             return;
         }
 
+        context.getSharedPreferences("ReminderRingStart", Context.MODE_PRIVATE)
+            .edit().putLong(reminderName, System.currentTimeMillis()).apply();
+
         // Default: alarm fired — show notification, vibrate, reschedule next
-        showNotification(context, notificationId, reminderName, channelId,
+        showNotification(context, notificationId, reminderId, reminderName, channelId,
                 reminderType, consecutiveTime, snoozeTime, alarmFile, startTimeMillis);
         startVibration(context);
 
@@ -93,7 +100,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                     : System.currentTimeMillis() + (24 * 60 * 60 * 1000L);
         }
 
-        scheduleNext(context, reminderName, reminderType, consecutiveTime, snoozeTime,
+        scheduleNext(context, reminderId, reminderName, reminderType, consecutiveTime, snoozeTime,
                 alarmFile, channelId, notificationId, nextTime);
         saveScheduledTime(context, reminderName, nextTime);
     }
@@ -129,7 +136,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         }
     }
 
-    private void showNotification(Context context, int id, String reminderName,
+    private void showNotification(Context context, int id, String reminderId, String reminderName,
                                    String channelId, String reminderType,
                                    int consecutiveTime, int snoozeTime,
                                    String alarmFile, long startTimeMillis) {
@@ -140,6 +147,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         // Full screen intent — opens AlarmActivity over lock screen
         Intent fullScreenIntent = new Intent(context, AlarmActivity.class);
         fullScreenIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        fullScreenIntent.putExtra("reminderId", reminderId);
         fullScreenIntent.putExtra("reminderName", reminderName);
         fullScreenIntent.putExtra("reminderType", reminderType);
         fullScreenIntent.putExtra("consecutiveTime", consecutiveTime);
@@ -156,6 +164,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         // Snooze action
         Intent snoozeIntent = new Intent(context, ReminderReceiver.class);
         snoozeIntent.setAction("SNOOZE");
+        snoozeIntent.putExtra("reminderId", reminderId);
         snoozeIntent.putExtra("reminderName", reminderName);
         snoozeIntent.putExtra("reminderType", reminderType);
         snoozeIntent.putExtra("consecutiveTime", consecutiveTime);
@@ -172,6 +181,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         // Stop action
         Intent stopIntent = new Intent(context, ReminderReceiver.class);
         stopIntent.setAction("STOP");
+        stopIntent.putExtra("reminderId", reminderId);
         stopIntent.putExtra("reminderName", reminderName);
         stopIntent.putExtra("reminderType", reminderType);
         stopIntent.putExtra("consecutiveTime", consecutiveTime);
@@ -189,6 +199,9 @@ public class ReminderReceiver extends BroadcastReceiver {
         Intent dismissIntent = new Intent(context, ReminderReceiver.class);
         dismissIntent.setAction("DISMISS");
         dismissIntent.putExtra("notificationId", id);
+        dismissIntent.putExtra("reminderId", reminderId);
+        dismissIntent.putExtra("reminderName", reminderName);
+        dismissIntent.putExtra("reminderType", reminderType);
         PendingIntent dismissPending = PendingIntent.getBroadcast(
                 context, id + 3, dismissIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
@@ -214,10 +227,11 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (nm != null) nm.notify(id, notification);
     }
 
-    private void scheduleNext(Context context, String reminderName, String reminderType,
+    private void scheduleNext(Context context, String reminderId, String reminderName, String reminderType,
                                int consecutiveTime, int snoozeTime, String alarmFile,
                                String channelId, int notificationId, long triggerAtMillis) {
         Intent nextIntent = new Intent(context, ReminderReceiver.class);
+        nextIntent.putExtra("reminderId", reminderId);
         nextIntent.putExtra("reminderName", reminderName);
         nextIntent.putExtra("reminderType", reminderType);
         nextIntent.putExtra("consecutiveTime", consecutiveTime);
@@ -256,23 +270,24 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .apply();
 
         // Broadcast to WebView if app is in foreground
-        notifyWebView(context, reminderName, nextMillis);
+        notifyWebView(context, reminderId, reminderName, nextMillis);
     }
 
-    private void notifyWebView(Context context, String reminderName, long nextMillis) {
+    private void notifyWebView(Context context, String reminderId, String reminderName, long nextMillis) {
         String nextDate = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
                 .format(new java.util.Date(nextMillis));
         String nextTime = new java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
                 .format(new java.util.Date(nextMillis));
 
         Intent broadcast = new Intent("REMINDER_UPDATED");
+        broadcast.putExtra("reminderId", reminderId);
         broadcast.putExtra("reminderName", reminderName);
         broadcast.putExtra("nextDate", nextDate);
         broadcast.putExtra("nextTime", nextTime);
         context.sendBroadcast(broadcast);
     }
 
-    private void saveHistory(Context context, String reminderName, 
+    private void saveHistory(Context context, String reminderId, String reminderName,
                           String status, long ringTime, long offTime) {
         android.content.SharedPreferences prefs = context
             .getSharedPreferences("ReminderHistory", Context.MODE_PRIVATE);
@@ -280,6 +295,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         try {
             org.json.JSONArray array = new org.json.JSONArray(existing);
             org.json.JSONObject entry = new org.json.JSONObject();
+            entry.put("reminderId", reminderId);
             entry.put("reminderName", reminderName);
             entry.put("status", status);       // "snoozed", "stopped", "dismissed"
             entry.put("ringTime", ringTime);   // when alarm fired

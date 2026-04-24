@@ -146,6 +146,9 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
         ?.value;
     }
     const newReminder: Reminder = {
+      reminderId:
+        reminder?.reminderId ||
+        `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: reminderName,
       type: reminderType,
       base: consecutiveBase,

@@ -60,23 +60,42 @@ function App() {
 
   const handleSaveReminder = (newReminder: Reminder) => {
     const isUpdate = selectedReminderIndex !== null;
+    const now = Date.now();
 
     if (isUpdate) {
+      const oldReminder = reminders[selectedReminderIndex!];
+      const diff = getReminderDiff(oldReminder, newReminder);
+      const updatedReminder = {
+        ...newReminder,
+        reminderId: oldReminder.reminderId,
+      };
+
       setReminders((prev) =>
-        prev.map((r, i) => (i === selectedReminderIndex ? newReminder : r)),
+        prev.map((r, i) => (i === selectedReminderIndex ? updatedReminder : r)),
       );
+
+      addHistory({
+        reminderId: oldReminder.reminderId,
+        reminderName: newReminder.name,
+        status: "updated",
+        ringTime: now,
+        offTime: now,
+        detail: diff,
+      });
     } else {
-      setReminders((prev) => [...prev, newReminder]);
+      const reminderId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const newWithId = { ...newReminder, reminderId };
+      setReminders((prev) => [...prev, newWithId]);
+
+      addHistory({
+        reminderId: reminderId,
+        reminderName: newReminder.name,
+        status: "created",
+        ringTime: now,
+        offTime: now,
+        detail: `Start: ${newReminder.type === "date" ? newReminder.startDate : newReminder?.base == "date" ? newReminder.startDate : ""} ${newReminder.startTime}, Type: ${newReminder.type}${newReminder.type === "consecutive" && newReminder.base === "time" ? `, Every ${newReminder.consecutiveTime}min` : newReminder.type === "consecutive" && newReminder.base === "date" ? ", Every Day" : ""}${newReminder.snoozeTime ? `, Snooze ${newReminder.snoozeTime}min` : ""}`,
+      });
     }
-
-    const now = Date.now();
-    addHistory({
-      reminderName: newReminder.name,
-      status: isUpdate ? "updated" : "created",
-      ringTime: now,
-      offTime: now,
-    });
-
     setSelectedReminderIndex(null);
   };
 
@@ -113,6 +132,7 @@ function App() {
       // Save history for web
       const ringTime = ringStartRef.current[reminder.name] ?? Date.now();
       addHistory({
+        reminderId: reminder.reminderId,
         reminderName: reminder.name,
         status: "snoozed",
         ringTime,
@@ -168,6 +188,7 @@ function App() {
       // Save history for web
       const ringTime = ringStartRef.current[reminder.name] ?? Date.now();
       addHistory({
+        reminderId: reminder.reminderId,
         reminderName: reminder.name,
         status: "stopped",
         ringTime,
@@ -186,6 +207,42 @@ function App() {
       }
       return updated;
     });
+  };
+
+  const getReminderDiff = (
+    oldReminder: Reminder,
+    newReminder: Reminder,
+  ): string => {
+    const changes: string[] = [];
+
+    if (oldReminder.name !== newReminder.name)
+      changes.push(`Name: "${oldReminder.name}" → "${newReminder.name}"`);
+
+    if (oldReminder.type !== newReminder.type)
+      changes.push(`Type: ${oldReminder.type} → ${newReminder.type}`);
+
+    if (oldReminder.startDate !== newReminder.startDate)
+      changes.push(`Date: ${oldReminder.startDate} → ${newReminder.startDate}`);
+
+    if (oldReminder.startTime !== newReminder.startTime)
+      changes.push(`Time: ${oldReminder.startTime} → ${newReminder.startTime}`);
+
+    if (oldReminder.consecutiveTime !== newReminder.consecutiveTime)
+      changes.push(
+        `Interval: ${oldReminder.consecutiveTime}min → ${newReminder.consecutiveTime}min`,
+      );
+
+    if (oldReminder.snoozeTime !== newReminder.snoozeTime)
+      changes.push(
+        `Snooze: ${oldReminder.snoozeTime ?? 5}min → ${newReminder.snoozeTime ?? 5}min`,
+      );
+
+    if (oldReminder.alarmFileName !== newReminder.alarmFileName)
+      changes.push(
+        `Sound: ${oldReminder.alarmFileName ?? "default"} → ${newReminder.alarmFileName ?? "default"}`,
+      );
+
+    return changes.length > 0 ? changes.join(", ") : "No changes";
   };
 
   // Init listeners + web worker — runs once on mount
@@ -273,7 +330,9 @@ function App() {
     M.Tooltip.init(elems);
     M.Modal.init(modalElems, {
       onOpenEnd: () => M.updateTextFields(),
-      onCloseEnd: () => setSelectedReminderIndex(null),
+      onCloseEnd: () => {
+        setSelectedReminderIndex(null);
+      },
     });
   }, []);
 

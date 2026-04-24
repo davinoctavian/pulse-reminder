@@ -95,7 +95,10 @@ function ReminderList({
                             flexWrap: "wrap",
                           }}
                         >
-                          <HistoryModal reminderName={reminder.name} />
+                          <HistoryModal
+                            reminderId={reminder.reminderId}
+                            reminderName={reminder.name}
+                          />
                           <a
                             href="#setting-modal"
                             data-tooltip="Details"
