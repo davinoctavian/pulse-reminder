@@ -42,13 +42,19 @@ function App() {
     "reminders",
     [],
   );
-  const [selectedReminderIndex, setSelectedReminderIndex] = useState<
+  const selectedReminderIndexRef = useRef<number | null>(null);
+  const [selectedReminderIndex, _setSelectedReminderIndex] = useState<
     number | null
   >(null);
+  const setSelectedReminderIndex = (index: number | null) => {
+    selectedReminderIndexRef.current = index;
+    _setSelectedReminderIndex(index);
+  };
 
   const ringingRef = useRef<Set<string>>(new Set());
   // Track ring start times for web history
   const ringStartRef = useRef<Record<string, number>>({});
+  const settingsResetRef = useRef<(() => void) | null>(null);
 
   const stopAlarmSound = () => {
     if (alarmAudio) {
@@ -329,6 +335,14 @@ function App() {
     M.FormSelect.init(selectElems);
     M.Tooltip.init(elems);
     M.Modal.init(modalElems, {
+      onOpenStart: (modal: Element) => {
+        if (
+          modal.id === "setting-modal" &&
+          selectedReminderIndexRef.current === null
+        ) {
+          settingsResetRef.current?.();
+        }
+      },
       onOpenEnd: () => M.updateTextFields(),
       onCloseEnd: () => {
         setSelectedReminderIndex(null);
@@ -375,6 +389,7 @@ function App() {
             : undefined
         }
         onSave={handleSaveReminder}
+        onResetRef={settingsResetRef}
       />
     </div>
   );

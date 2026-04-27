@@ -11,9 +11,10 @@ const platform = Capacitor.getPlatform();
 interface ReminderModalProps {
   reminder?: Reminder;
   onSave: (reminder: Reminder) => void;
+  onResetRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-function Settings({ reminder, onSave }: ReminderModalProps) {
+function Settings({ reminder, onSave, onResetRef }: ReminderModalProps) {
   const [reminderName, setReminderName] = useState(reminder?.name || "");
   const [reminderType, setReminderType] = useState(reminder?.type || "");
   const [consecutiveBase, setConsecutiveBase] = useState(reminder?.base || "");
@@ -30,6 +31,24 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
       : "defaultalarm.wav",
   );
   const justOpened = useRef(false);
+  const resetForm = () => {
+    setReminderName("");
+    setReminderType("");
+    setConsecutiveBase("");
+    setDateReminder("");
+    setTimeReminder("");
+    setConsecutiveTime(0);
+    setSnoozeTime(5);
+    setAlarmFile(defaultAlarm);
+    setAlarmFileName(platform !== "web" ? "defaultalarm.wav" : "Default Alarm");
+    justOpened.current = true;
+  };
+
+  useEffect(() => {
+    if (onResetRef) {
+      onResetRef.current = resetForm;
+    }
+  }, []);
 
   useEffect(() => {
     if (reminder) {
@@ -45,20 +64,6 @@ function Settings({ reminder, onSave }: ReminderModalProps) {
         setAlarmFileName(reminder.alarmFileName || "defaultalarm.wav");
       } else {
         setAlarmFileName(reminder.alarmFileName || "Default Alarm");
-      }
-    } else {
-      setReminderName("");
-      setReminderType("");
-      setConsecutiveBase("");
-      setDateReminder("");
-      setTimeReminder("");
-      setConsecutiveTime(0);
-      setSnoozeTime(5);
-      setAlarmFile(defaultAlarm);
-      if (platform !== "web") {
-        setAlarmFileName("defaultalarm.wav");
-      } else {
-        setAlarmFileName("Default Alarm");
       }
     }
     justOpened.current = true;
